@@ -1,0 +1,9 @@
+# __init__.py
+# Imports all SQLAlchemy models for Alembic autogeneration
+
+from .users import User
+from .user_configurations import UserConfiguration
+from .system_configurations import SystemConfiguration
+from .requests import Request
+from .user_sessions import UserSession
+

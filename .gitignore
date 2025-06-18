@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# VSCode
+.vscode/
+
+# Environments
+.env
+.venv/
+venv/
+
+# Alembic
+alembic/versions/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs and DB dumps
+*.log
+*.sqlite3
+
+# MyPy / Coverage / Testing
+.mypy_cache/
+.coverage
+htmlcov/
+pytest_cache/
+
+# PyInstaller
+*.spec
