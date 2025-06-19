@@ -8,7 +8,7 @@ A multi-tenant SaaS platform that uses AI to generate social media threads and a
 
 ## Current Phase
 
-**Phase 2: Basic Research Agent** ✅ COMPLETE
+**Phase 2: Basic Pipeline – Summary Agent** ✅ COMPLETE
 
 ---
 
@@ -67,16 +67,21 @@ xPostingAgent-as-a-Service/
 │   │   ├── __init__.py
 │   │   ├── users.py            # User table
 │   │   ├── requests.py         # Request table
-│   │   └── research_sources.py # ✅ NEW: Source metadata per request
+│   │   ├── research_sources.py # Source metadata per request
+│   │   └── summaries.py        # ✅ NEW: Stores combined summary + key points
 │   ├── agents/
-│   │   └── research_agent.py   # ✅ NEW: Suggests and verifies sources
+│   │   ├── research_agent.py   # Research Agent: suggests + verifies sources
+│   │   └── summary_agent.py    # ✅ NEW: Summarises research into summary + key points
 │   ├── prompts/
-│   │   └── research_prompt.py  # ✅ NEW: Prompt builder for research agent
+│   │   ├── research_prompt.py  # Prompt builder for research agent
+│   │   └── summary_prompt.py   # ✅ NEW: Prompt builder for summary agent
 │   ├── llm/
 │   │   ├── __init__.py
 │   │   └── engine.py           # Handles GPT calls with agent-aware model lookup
-├── insert_dummy_data.py        # ✅ Script to insert test user/request
-├── test_run_research_agent.py  # ✅ Script to test the research agent manually
+├── insert_dummy_data.py        # Script to insert test user/request
+├── test_run_research_agent.py  # Manual test for the research agent
+├── app/tests/
+│   └── test_run_summary_agent.py # ✅ NEW: Manual test for the summary agent
 ├── .env
 ├── requirements.txt
 ```
@@ -87,8 +92,9 @@ xPostingAgent-as-a-Service/
 
 ### `app/config.py`
 
-* `Settings(BaseSettings)`: Loads environment variables for model config and runtime.
-* Adds support for: `openai_model_research_agent`
+* `Settings(BaseSettings)`: Loads environment variables for model config and runtime
+
+  * Includes model overrides per agent (e.g. `openai_model_summary_agent`)
 
 ### `app/database.py`
 
@@ -100,64 +106,85 @@ xPostingAgent-as-a-Service/
 
 #### `research_sources.py`
 
-* `ResearchSource`: SQLAlchemy model for storing source metadata:
+* `ResearchSource`: SQLAlchemy model for storing:
 
-  * `url`, `title`, `author`, `verification_status`, `relevance_score`, `freshness_score`, `last_verified_at`, etc.
-  * Linked to both `requests` and `users`
+  * `url`, `title`, `author`, `verification_status`, `relevance_score`, `freshness_score`, `last_verified_at`, `summary`, `key_points`, `is_used`, etc.
+
+#### `summaries.py`
+
+* `Summary`: SQLAlchemy model for storing final summarisation output:
+
+  * `request_id`, `user_id`, `combined_summary`, `combined_key_points`, `source_count`, `is_used`, `created_at`
 
 ### `app/llm/engine.py`
 
-* `generate_completion(prompt, model_name=None, agent="default")`:
+* `generate_completion(prompt, model_name=None, agent="default")`
 
   * Selects model using `DEFAULT_MODELS.get(agent, settings.openai_model)`
-  * Prints which model is being used for debugging
+  * Prints active model for debugging
 
-### `app/prompts/research_prompt.py`
+### `app/prompts/summary_prompt.py`
 
-* `build_research_prompt(topic, preference)`:
+* `build_summary_prompt(text, key_points, length_limit, content_type)`:
 
-  * Constructs a system prompt instructing GPT to return a list of articles in the form: `[Title] by [Author] - [URL]`
+  * Builds a structured LLM prompt for summarisation using verified source inputs
 
-### `app/agents/research_agent.py`
+### `app/agents/summary_agent.py`
 
-* `generate_research_sources(request_id, content_topic, user_id, limit=5, preference='balanced')`:
+* `combine_summaries(sources)`:
 
-  * Coordinates AI prompt, parsing, verification, and DB storage
-  * Skips duplicates and logs actions
-  * Adds placeholder scores for relevance/freshness
-* `parse_ai_response(response_text)`:
+  * Combines all source summaries into one text block
 
-  * Parses each `1. [Title] by [Author] - [URL]` line into a dictionary
-* `verify_url(url)`:
+* `merge_key_points(sources)`:
 
-  * Uses `requests.head()` (fallback to `get()`) with a browser-like `User-Agent` to validate link
+  * Deduplicates and merges key points across all verified sources
+
+* `parse_llm_output(response_text)`:
+
+  * Splits LLM response into summary and key points section
+
+* `generate_and_store_summary(request_id, verified_sources, target_length, content_type, user_id)`:
+
+  * Main pipeline that:
+
+    1. Combines summaries
+    2. Builds prompt
+    3. Calls LLM
+    4. Parses result
+    5. Saves to `summaries` table
 
 ### `insert_dummy_data.py`
 
-* Inserts a `User` and `Request` into the database for test purposes
+* Inserts dummy `User` and `Request` into DB for testing
 
 ### `test_run_research_agent.py`
 
-* Runs the full `generate_research_sources()` pipeline and prints inserted sources from DB
+* Manual test runner for `generate_research_sources()` pipeline
+
+### `test_run_summary_agent.py`
+
+* ✅ NEW manual test runner for summary agent
+* Inserts dummy request + verified sources with `summary`/`key_points`
+* Runs `generate_and_store_summary()` and prints results
 
 ---
 
 ## Tests
 
-* Manual test script `test_run_research_agent.py`:
+* Manual test scripts:
 
-  * Runs the agent using a test request ID
-  * Prints parsed sources, verified count, and database entries
+  * `test_run_research_agent.py`: prints verified research sources
+  * `test_run_summary_agent.py`: prints summary + key points generated from sources
 
 ---
 
 ## What’s Next
 
-🔜 In the next phase, we will:
+🕸️ In the next phase, we will:
 
-1. Implement the **Summary Agent**
-2. For each verified source, fetch and summarise content
-3. Extract key points and store results in `summaries` table
+1. Implement the **Content Generation Agent**
+2. Take summaries + key points → turn into engaging threads/articles
+3. Store output in `content_queue` table for review/posting
 
 ---
 

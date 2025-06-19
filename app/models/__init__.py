@@ -7,4 +7,6 @@ from .system_configurations import SystemConfiguration
 from .requests import Request
 from .user_sessions import UserSession
 from .research_sources import ResearchSource
+from .summaries import Summary
+
 
