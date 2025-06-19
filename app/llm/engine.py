@@ -16,6 +16,7 @@ DEFAULT_MODELS = {
     "topic_agent": settings.openai_model_topic_agent or "gpt-4",
     "summary_agent": settings.openai_model_summary_agent or "gpt-4-turbo",
     "content_agent": settings.openai_model_content_agent or "gpt-4-turbo",
+    "research_agent":settings.openai_model_research_agent or "gpt-4-turbo",
 }
 
 def generate_completion(prompt: str, model_name: str = None, agent: str = "default") -> str:
@@ -34,6 +35,7 @@ def generate_completion(prompt: str, model_name: str = None, agent: str = "defau
         raise NotImplementedError("Only OpenAI is supported at the moment.")
 
     selected_model = model_name or DEFAULT_MODELS.get(agent, settings.openai_model)
+    print(f"🤖 Using model for {agent}: {selected_model}")
 
     response = openai.chat.completions.create(
         model=selected_model,
