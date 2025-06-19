@@ -15,8 +15,13 @@ class Settings(BaseSettings):
     x_api_key: str = ""
     x_api_secret: str = ""
     default_ai_provider: str = "openai"
+    openai_model: str = "gpt-4"
+    openai_model_topic_agent: str = "gpt-4"
+    openai_model_summary_agent: str = "gpt-4-turbo"
+    openai_model_content_agent: str = "gpt-4-turbo"
 
     class Config:
         env_file = ".env"
+        extra ="allow"
 
 settings = Settings()
