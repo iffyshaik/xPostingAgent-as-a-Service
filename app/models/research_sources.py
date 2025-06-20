@@ -27,3 +27,5 @@ class ResearchSource(Base):
     verification_attempts = Column(Integer, default=0)
     last_verified_at = Column(DateTime, default=None)
     created_at = Column(DateTime, default=datetime.utcnow)
+    access_status = Column(String(50), nullable=True)  # e.g. OK, 403, timeout, DNS error
+
