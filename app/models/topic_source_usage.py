@@ -1,3 +1,5 @@
+#THIS TABLE STORES HOW MUCH A SOURCE IS USED TO PREVENT OVER USE OF A SOURCE FOR CONTENT
+
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, UniqueConstraint
 from datetime import datetime
 from app.database import Base

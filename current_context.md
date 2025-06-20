@@ -6,7 +6,6 @@ This document captures the full current state of the codebase, to ensure any dev
 
 ## 📁 Project Folder Structure (as of 2025-06-20)
 
-```
 xPostingAgent-as-a-Service/
 │
 ├── app/
@@ -16,24 +15,31 @@ xPostingAgent-as-a-Service/
 │   ├── models/
 │   │   ├── users.py
 │   │   ├── requests.py
+│   │   ├── summaries.py
 │   │   ├── research_sources.py
-│   │   ├── topic_source_usage.py  ✅ NEW
+│   │   ├── topic_source_usage.py
+│   │   ├── content_queue.py             ✅ NEW
+│   │   ├── thread_metadata.py           ✅ NEW
 │   ├── agents/
 │   │   ├── topic_agent.py
-│   │   ├── research_agent.py      ✅ UPDATED
+│   │   ├── research_agent.py
+│   │   ├── content_agent.py             ✅ NEW
 │   ├── services/
-│   │   ├── google_search.py       ✅ NEW
-│   │   ├── ai_source_discovery.py ✅ NEW
-│   │   ├── source_verification.py ✅ NEW
-│   │   ├── embedding_similarity.py✅ NEW
-│   │   ├── source_reuse.py        ✅ NEW
+│   │   ├── google_search.py
+│   │   ├── ai_source_discovery.py
+│   │   ├── source_verification.py
+│   │   ├── embedding_similarity.py
+│   │   ├── source_reuse.py
+│   │   ├── content_validation.py        ✅ NEW
 │   ├── utils/
-│   │   ├── hash.py                ✅ NEW
+│   │   ├── hash.py
+│   │   ├── offensive_filter.py          ✅ NEW
 │
 ├── app/tests/
 │   ├── test_topic_agent.py
-│   ├── test_topic_source_usage.py     ✅ NEW
-│   ├── test_run_research_agent.py     ✅ NEW
+│   ├── test_topic_source_usage.py
+│   ├── test_run_research_agent.py
+│   ├── test_content_agent.py            ✅ NEW
 │
 ├── alembic/
 │   └── versions/
@@ -42,172 +48,132 @@ xPostingAgent-as-a-Service/
 ├── .env
 ├── requirements.txt
 └── current_context.md
-```
 
 ---
 
 ## 🧠 Agent Layer
 
-### `agents/topic_agent.py`
-- **`generate_refined_topic()`**: Uses GPT to refine the original topic into a more specific content topic. Saves result into `requests.content_topic`.
+### agents/topic_agent.py
+- generate_refined_topic(): Refines a user-submitted topic into a more specific and engaging one using LLM. Stores in requests.content_topic.
 
-### `agents/research_agent.py`
-- **`generate_research_sources()`**: End-to-end agent that:
-  1. Fetches sources from both AI and Google
-  2. Deduplicates by URL
-  3. Verifies URLs and extracts metadata
-  4. Filters by relevance using GPT + embedding similarity
-  5. Saves valid sources to `research_sources`
-  6. Logs access errors and overuse via `topic_source_usage`
+### agents/research_agent.py
+- generate_research_sources(): Full pipeline to fetch, verify, deduplicate, and rank sources (AI + Google). Saves to research_sources and logs access issues to topic_source_usage.
+
+### agents/content_agent.py ✅ NEW
+- create_content(): Main entry point for the content generation agent. Builds prompt, calls LLM, validates output, stores in content_queue.
+- build_content_prompt(): Dynamically constructs the LLM prompt using persona, tone, style, tweet/article specs, and citation config.
+- select_top_citations(): Selects top N sources based on relevance and freshness scores.
+- check_offensive_content(): Uses a profanity library to detect NSFW or sensitive content based on .env flag.
+- store_thread_metadata(): (If content is a thread) stores structured output including tweet objects and citation tweets.
 
 ---
 
 ## 🔧 Services Layer
 
-### `services/google_search.py`
-- **`get_google_search_results(topic: str, limit: int)`**  
-  Searches using Google Custom Search API and returns a list of article dicts.
-
-### `services/ai_source_discovery.py`
-- **`discover_sources_with_ai(topic, limit, preference)`**  
-  Prompts the LLM to suggest relevant sources, parsed into `[title, author, url]`.
-
-### `services/source_verification.py`
-- **`is_url_accessible(url) → (bool, reason)`** ✅ UPDATED  
-  Uses `requests.get()` with user-agent to simulate browser. Logs and returns reason.
-
-- **`extract_page_metadata(url)`**  
-  Extracts title/snippet with BeautifulSoup.
-
-- **`check_relevance_with_ai(snippet, topic)`**  
-  Uses GPT to verify if the page content is topically aligned.
-
-### `services/embedding_similarity.py`
-- **`calculate_embedding_similarity(topic, snippet)`**  
-  Embeds both texts using OpenAI Embeddings API and computes cosine similarity.
-
-### `services/source_reuse.py`
-- **`is_source_overused(user_id, topic, url)`**  
-  Checks if this source was used too many times for a topic by this user.
-
-- **`increment_source_usage(user_id, topic, url)`**  
-  Adds or updates a row in `topic_source_usage` for reuse tracking.
+### services/content_validation.py ✅ NEW
+- validate_article_length(content, max_words): Raises ValueError if word count exceeds limit.
+- validate_thread_structure(tweets, max_tweets, max_chars): Flags (but does not truncate) tweets that exceed allowed length; returns tweets unchanged.
 
 ---
 
-## 🔐 `utils/hash.py`
-- **`hash_string_sha256(string)`**  
-  Returns SHA256 hash of a string — used to anonymise topics and URLs for reuse tracking.
+## 🔐 Utils
+
+### utils/hash.py
+- hash_string_sha256(string): SHA256 hashing for anonymising topics and URLs (used in source reuse).
+
+### utils/offensive_filter.py ✅ NEW
+- check_offensive_content(text): Returns True if profanity is detected using better_profanity.
 
 ---
 
 ## 🧪 Tests
 
-### `tests/test_topic_source_usage.py`
-- Unit test to verify insertion and reuse incrementing in `topic_source_usage`.
+### tests/test_topic_source_usage.py
+- Unit tests for incrementing and checking topic_source_usage.
 
-### `tests/test_run_research_agent.py`
-- Manual integration test for running the full `generate_research_sources()` pipeline.
+### tests/test_run_research_agent.py
+- Manual pipeline test for end-to-end research agent logic.
+
+### tests/test_content_agent.py ✅ NEW
+- test_prompt_generation() – ensures all persona/tone config included
+- test_article_length_validation_*() – tests pass/fail scenarios
+- test_thread_structure_validation_*() – handles tweet overflow detection
+- test_select_top_citations() – ensures top-ranked sources are chosen
+- test_offensive_filter_*() – validates toggleable profanity detection
 
 ---
 
 ## 🧬 Models
 
-### `models/users.py`
-```python
-id
-email
-password_hash
-subscription_tier
-api_quota_daily / api_quota_used_today
-created_at / updated_at
-```
+### models/users.py
+- id, email, password_hash, subscription_tier
+- api_quota_daily / api_quota_used_today
+- created_at / updated_at
 
-### `models/requests.py`
-```python
-id
-user_id → FK to users
-original_topic
-content_topic
-status
-content_type
-auto_post
-source_count_limit
-platform
-...
-```
+### models/requests.py
+- id, user_id, original_topic, content_topic
+- status, content_type, auto_post, platform
+- thread_tweet_count, max_article_length
+- include_source_citations, citation_count
+- created_at, updated_at
+- TODO: Uncomment this after migration:
+  max_tweet_length = Column(Integer, default=280)
 
-### `models/research_sources.py`
-```python
-id
-request_id → FK
-user_id → FK
-source_type = "AI Discovery" | "Google Search"
-url, title, author
-verification_status = "verified" | "failed"
-relevance_score
-access_status ✅ NEW
-verification_attempts
-last_verified_at
-```
+### models/summaries.py
+- id, request_id, user_id
+- combined_summary, combined_key_points, source_count
+- is_used, created_at
 
-### `models/topic_source_usage.py` ✅ NEW
-```python
-id
-user_id → FK
-content_topic_hash
-source_url_hash
-usage_count
-last_used_at
-```
+### models/research_sources.py
+- id, request_id, user_id, source_type
+- url, title, author, publication_date, source_domain
+- verification_status, access_status
+- relevance_score, freshness_score
+- summary, key_points[], is_used
+- verification_attempts, last_verified_at, created_at
+
+### models/topic_source_usage.py
+- id, user_id
+- content_topic_hash, source_url_hash
+- usage_count, last_used_at
+
+### models/content_queue.py ✅ NEW
+- id, request_id, user_id
+- content_type, generated_content, platform
+- status = "draft" | "approved" | "scheduled" | "posted" | "failed"
+- scheduled_for, post_response, error_message
+- created_at, posted_at
+
+### models/thread_metadata.py ✅ NEW
+- id, content_queue_id
+- requested_tweet_count, actual_tweet_count
+- max_tweet_length (default = 280)
+- thread_structure (JSON), citation_tweets (JSON)
+- created_at
 
 ---
 
-## 🤖 LLM Model Configuration
+## ⚙️ Config
 
-- All LLM completions go through:
-  ```python
-  generate_completion(prompt: str, model_name: str = None, agent: str = "default")
-  ```
+### .env
+ENABLE_OFFENSIVE_CHECK=true
 
-- Model defaults are set in `config.py` via environment variables:
-  ```
-  DEFAULT_PROVIDER=openai
-  OPENAI_API_KEY=...
-  OPENAI_MODEL=gpt-4.1
-  ```
-
-- Agent-specific defaults can override global defaults using:
-  ```python
-  DEFAULT_MODELS = {
-      "topic_agent": "gpt-4.1",
-      "research_agent": "gpt-4.1",
-      ...
-  }
-  ```
+### config.py
+enable_offensive_check: bool = True
 
 ---
 
-## 🛠️ Developer Notes
+## 🔮 Future Enhancements & TODOs
 
-### 📌 How to Add New Model Columns
-- Add to the model class
-- Run:
-  ```bash
-  alembic revision --autogenerate -m "add column"
-  alembic upgrade head
-  ```
-- Safe: old rows will get `NULL` unless `nullable=False`
-
----
-
-## 🔍 Known TODOs / Future Tasks
-
-- Add summary + key points generation into `summaries` table
-- Implement thread generation logic for X (Twitter)
-- Build admin panel to inspect sources, errors, overused domains
-- Integrate logging for LLM costs
-- Write tests for all new service modules
+- [ ] Move enable_offensive_check to user_configurations for per-user control
+- [ ] Add smart tweet-splitting logic instead of truncation (to improve flow)
+- [ ] Store which tweets exceed limits as metadata (e.g. needs_review)
+- [ ] Support thread styles: uniform, variable, conversational
+- [ ] Flag and visualise long tweets in admin dashboard
+- [ ] Support markdown and emoji styling in LLM prompt
+- [ ] Add test coverage for create_content() end-to-end with mocked LLM
+- [ ] Track offensive flag reason in DB (e.g., keyword hit)
+- [ ] Add unit tests for article section formatting and citations in article mode
 
 ---
 
