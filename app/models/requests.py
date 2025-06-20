@@ -24,3 +24,4 @@ class Request(Base):
     error_message = Column(Text)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    max_tweet_length = Column(Integer, default=280)
