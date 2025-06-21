@@ -6,40 +6,47 @@ This document captures the full current state of the codebase, to ensure any dev
 
 ## 📁 Project Folder Structure (as of 2025-06-20)
 
+```
 xPostingAgent-as-a-Service/
 │
 ├── app/
 │   ├── main.py
 │   ├── config.py
 │   ├── database.py
+│   ├── dependencies.py                  # ✅ NEW – shared Depends() providers
 │   ├── models/
 │   │   ├── users.py
 │   │   ├── requests.py
 │   │   ├── summaries.py
 │   │   ├── research_sources.py
 │   │   ├── topic_source_usage.py
-│   │   ├── content_queue.py             ✅ NEW
-│   │   ├── thread_metadata.py           ✅ NEW
+│   │   ├── content_queue.py
+│   │   ├── thread_metadata.py
 │   ├── agents/
 │   │   ├── topic_agent.py
 │   │   ├── research_agent.py
-│   │   ├── content_agent.py             ✅ NEW
+│   │   ├── content_agent.py
 │   ├── services/
 │   │   ├── google_search.py
 │   │   ├── ai_source_discovery.py
 │   │   ├── source_verification.py
 │   │   ├── embedding_similarity.py
 │   │   ├── source_reuse.py
-│   │   ├── content_validation.py        ✅ NEW
+│   │   ├── content_validation.py
+│   │   ├── content_queue.py             # ✅ NEW – approve/schedule/post logic
 │   ├── utils/
 │   │   ├── hash.py
-│   │   ├── offensive_filter.py          ✅ NEW
+│   │   ├── offensive_filter.py
+│   ├── api/
+│   │   ├── auth.py
+│   │   ├── content_queue.py             # ✅ NEW – routes for queue lifecycle
 │
 ├── app/tests/
 │   ├── test_topic_agent.py
 │   ├── test_topic_source_usage.py
 │   ├── test_run_research_agent.py
-│   ├── test_content_agent.py            ✅ NEW
+│   ├── test_content_agent.py
+│   ├── test_content_queue.py            # ✅ NEW – tests for approval/schedule/post
 │
 ├── alembic/
 │   └── versions/
@@ -48,132 +55,149 @@ xPostingAgent-as-a-Service/
 ├── .env
 ├── requirements.txt
 └── current_context.md
+```
 
 ---
 
 ## 🧠 Agent Layer
 
-### agents/topic_agent.py
-- generate_refined_topic(): Refines a user-submitted topic into a more specific and engaging one using LLM. Stores in requests.content_topic.
+### agents/topic\_agent.py
 
-### agents/research_agent.py
-- generate_research_sources(): Full pipeline to fetch, verify, deduplicate, and rank sources (AI + Google). Saves to research_sources and logs access issues to topic_source_usage.
+* `generate_refined_topic()`: Refines a user-submitted topic into a more specific and engaging one using LLM. Stores in requests.content\_topic.
 
-### agents/content_agent.py ✅ NEW
-- create_content(): Main entry point for the content generation agent. Builds prompt, calls LLM, validates output, stores in content_queue.
-- build_content_prompt(): Dynamically constructs the LLM prompt using persona, tone, style, tweet/article specs, and citation config.
-- select_top_citations(): Selects top N sources based on relevance and freshness scores.
-- check_offensive_content(): Uses a profanity library to detect NSFW or sensitive content based on .env flag.
-- store_thread_metadata(): (If content is a thread) stores structured output including tweet objects and citation tweets.
+### agents/research\_agent.py
+
+* `generate_research_sources()`: Full pipeline to fetch, verify, deduplicate, and rank sources (AI + Google). Saves to research\_sources and logs access issues to topic\_source\_usage.
+
+### agents/content\_agent.py
+
+* `create_content()`: Main entry point for the content generation agent. Builds prompt, calls LLM, validates output, stores in content\_queue.
+* `build_content_prompt()`: Dynamically constructs the LLM prompt using persona, tone, style, tweet/article specs, and citation config.
+* `select_top_citations()`: Selects top N sources based on relevance and freshness scores.
+* `check_offensive_content()`: Uses a profanity library to detect NSFW or sensitive content based on .env flag.
+* `store_thread_metadata()`: (If content is a thread) stores structured output including tweet objects and citation tweets.
 
 ---
 
 ## 🔧 Services Layer
 
-### services/content_validation.py ✅ NEW
-- validate_article_length(content, max_words): Raises ValueError if word count exceeds limit.
-- validate_thread_structure(tweets, max_tweets, max_chars): Flags (but does not truncate) tweets that exceed allowed length; returns tweets unchanged.
+### services/content\_validation.py
+
+* `validate_article_length(content, max_words)`: Raises ValueError if word count exceeds limit.
+* `validate_thread_structure(tweets, max_tweets, max_chars)`: Flags (but does not truncate) tweets that exceed allowed length; returns tweets unchanged.
+
+### services/content\_queue.py ✅ NEW
+
+* `approve_content(content_id, db)`: Validates structure and checks offensiveness. Updates status to "approved".
+* `schedule_content(content_id, scheduled_for, db)`: Updates status to "scheduled" with future timestamp.
+* `post_content(content_id, db)`: Simulates posting logic; updates status to "posted" or "failed".
 
 ---
 
-## 🔐 Utils
+## 🔐 Dependencies
+
+### dependencies.py ✅ NEW
+
+* `get_db()`: Yields SQLAlchemy session from SessionLocal.
+* `get_current_user()`: Extracts user ID from JWT token using `OAuth2PasswordBearer`.
+
+---
+
+## 🔎 Utils
 
 ### utils/hash.py
-- hash_string_sha256(string): SHA256 hashing for anonymising topics and URLs (used in source reuse).
 
-### utils/offensive_filter.py ✅ NEW
-- check_offensive_content(text): Returns True if profanity is detected using better_profanity.
+* `hash_string_sha256(string)`: SHA256 hashing for anonymising topics and URLs (used in source reuse).
 
----
+### utils/offensive\_filter.py
 
-## 🧪 Tests
-
-### tests/test_topic_source_usage.py
-- Unit tests for incrementing and checking topic_source_usage.
-
-### tests/test_run_research_agent.py
-- Manual pipeline test for end-to-end research agent logic.
-
-### tests/test_content_agent.py ✅ NEW
-- test_prompt_generation() – ensures all persona/tone config included
-- test_article_length_validation_*() – tests pass/fail scenarios
-- test_thread_structure_validation_*() – handles tweet overflow detection
-- test_select_top_citations() – ensures top-ranked sources are chosen
-- test_offensive_filter_*() – validates toggleable profanity detection
+* `check_offensive_content(text)`: Returns True if profanity is detected using better\_profanity.
 
 ---
 
 ## 🧬 Models
 
 ### models/users.py
-- id, email, password_hash, subscription_tier
-- api_quota_daily / api_quota_used_today
-- created_at / updated_at
+
+* `id`, `email`, `password_hash`, `subscription_tier`, `api_quota_daily`, `api_quota_used_today`, `created_at`, `updated_at`
 
 ### models/requests.py
-- id, user_id, original_topic, content_topic
-- status, content_type, auto_post, platform
-- thread_tweet_count, max_article_length
-- include_source_citations, citation_count
-- created_at, updated_at
-- TODO: Uncomment this after migration:
-  max_tweet_length = Column(Integer, default=280)
+
+* `id`, `user_id`, `original_topic`, `content_topic`, `status`, `content_type`, `auto_post`, `platform`, `thread_tweet_count`, `max_article_length`, `include_source_citations`, `citation_count`, `created_at`, `updated_at`, `error_message`
+* 🔧 TODO: Switch to Session.get() where `.query().get()` is used
 
 ### models/summaries.py
-- id, request_id, user_id
-- combined_summary, combined_key_points, source_count
-- is_used, created_at
 
-### models/research_sources.py
-- id, request_id, user_id, source_type
-- url, title, author, publication_date, source_domain
-- verification_status, access_status
-- relevance_score, freshness_score
-- summary, key_points[], is_used
-- verification_attempts, last_verified_at, created_at
+* Contains unsupported ARRAY column (`Text[]`) for SQLite tests
 
-### models/topic_source_usage.py
-- id, user_id
-- content_topic_hash, source_url_hash
-- usage_count, last_used_at
+### models/research\_sources.py
 
-### models/content_queue.py ✅ NEW
-- id, request_id, user_id
-- content_type, generated_content, platform
-- status = "draft" | "approved" | "scheduled" | "posted" | "failed"
-- scheduled_for, post_response, error_message
-- created_at, posted_at
+* `id`, `request_id`, `user_id`, `source_type`, `url`, `title`, `author`, `verification_status`, `relevance_score`, `freshness_score`, `summary`, `key_points[]`, `is_used`
 
-### models/thread_metadata.py ✅ NEW
-- id, content_queue_id
-- requested_tweet_count, actual_tweet_count
-- max_tweet_length (default = 280)
-- thread_structure (JSON), citation_tweets (JSON)
-- created_at
+### models/topic\_source\_usage.py
+
+* Tracks reuse of sources per topic hash
+
+### models/content\_queue.py
+
+* `id`, `request_id`, `user_id`, `content_type`, `generated_content`, `status`, `scheduled_for`, `platform`, `post_response`, `error_message`, `created_at`, `posted_at`
+
+### models/thread\_metadata.py
+
+* `id`, `content_queue_id`, `requested_tweet_count`, `actual_tweet_count`, `max_tweet_length`, `thread_structure`, `citation_tweets`, `created_at`
+
+---
+
+## 🔌 API Layer
+
+### api/auth.py
+
+* POST `/auth/register`, `/auth/login` — Delegates to `auth_service.py`
+
+### api/content\_queue.py ✅ NEW
+
+* PUT `/content/queue/{content_id}/approve`: Validates and approves draft
+* PUT `/content/queue/{content_id}/schedule`: Schedules future posting
+* POST `/content/queue/{content_id}/post`: Simulates post or marks as failed
+
+---
+
+## 🧪 Tests
+
+### tests/test\_content\_agent.py
+
+* Validates prompt, filters, citation logic
+
+### tests/test\_content\_queue.py ✅ NEW
+
+* `test_approve_content_success()`: Asserts status moves to "approved"
+* `test_schedule_content_success()`: Asserts future time is accepted
+* `test_post_content_success()`: Asserts post logic and result stored
+* ⚠️ Uses `ContentQueue.__table__.create()` to avoid ARRAY errors with SQLite
 
 ---
 
 ## ⚙️ Config
 
 ### .env
-ENABLE_OFFENSIVE_CHECK=true
+
+* `ENABLE_OFFENSIVE_CHECK=true`
 
 ### config.py
-enable_offensive_check: bool = True
+
+* Loads secrets, keys, AI providers
 
 ---
 
 ## 🔮 Future Enhancements & TODOs
 
-- [ ] Move enable_offensive_check to user_configurations for per-user control
-- [ ] Add smart tweet-splitting logic instead of truncation (to improve flow)
-- [ ] Store which tweets exceed limits as metadata (e.g. needs_review)
-- [ ] Support thread styles: uniform, variable, conversational
-- [ ] Flag and visualise long tweets in admin dashboard
-- [ ] Support markdown and emoji styling in LLM prompt
-- [ ] Add test coverage for create_content() end-to-end with mocked LLM
-- [ ] Track offensive flag reason in DB (e.g., keyword hit)
-- [ ] Add unit tests for article section formatting and citations in article mode
+* [ ] Replace hardcoded validation values (e.g. 280 chars, 5000 words) with per-user config fallback to system defaults
+* [ ] Replace `db.query().get()` with `db.get()` in services and tests
+* [ ] Use timezone-aware `datetime.now(UTC)` instead of deprecated `datetime.utcnow()`
+* [ ] Add Celery for async post-at-scheduled-time with jitter logic
+* [ ] Add system config overrides for platforms (e.g. post window, max retries)
+* [ ] Add retry/backoff logic for failed posting
+* [ ] Track all transitions (draft → approved → scheduled/post) in an audit table
 
 ---
 

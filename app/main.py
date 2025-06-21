@@ -5,7 +5,8 @@ This initialises the app and includes routes such as authentication.
 """
 
 from fastapi import FastAPI
-from app.api import auth
+from app.api import auth,  content_queue
+
 
 app = FastAPI(
     title="Social Media Posting Agent API",
@@ -15,3 +16,6 @@ app = FastAPI(
 
 # Include the authentication routes
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
+
+# Include the content_queue routes
+app.include_router(content_queue.router)

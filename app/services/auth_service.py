@@ -15,18 +15,14 @@ from app.config import settings
 
 from sqlalchemy.orm import Session
 from fastapi import Depends
-from app.database import SessionLocal
+#from app.database import SessionLocal
+from app.dependencies import get_db
 from app.models.user_sessions import UserSession
 import hashlib
 
 
-# Dependency to get DB session
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# Dependency to get DB session - Deleted and moved to dependencies.py
+
 
 # Constants from config
 SECRET_KEY = settings.secret_key
