@@ -14,6 +14,12 @@ from app.models.content_queue import ContentQueue
 from app.services.content_validation import validate_article_length, validate_thread_structure
 from app.utils.offensive_filter import check_offensive_content
 
+from app.services.platform_publisher import post_to_typefully, post_to_x
+from app.models.thread_metadata import ThreadMetadata
+from app.config import settings
+from sqlalchemy.exc import SQLAlchemyError
+import logging
+
 
 # --- Approve content after validation ---
 def approve_content(content_id: int, db: Session):
@@ -76,35 +82,50 @@ def schedule_content(content_id: int, scheduled_for: datetime, db: Session):
 
 
 # --- Post content immediately (simulated) ---
-def post_content(content_id: int, db: Session):
+def post_content(content_id: int, db: Session, dry_run: bool = False) -> dict:
     """
-    Simulates posting the content.
-    Sets status to 'posted' or 'failed' depending on result.
-    This will later call the real Typefully/X API.
+    Posts approved content to the selected platform (Typefully or X).
+    If dry_run is True, skip real posting and log simulated result.
     """
     content = db.query(ContentQueue).filter(ContentQueue.id == content_id).first()
 
     if not content:
-        raise HTTPException(status_code=404, detail="Content not found")
+        raise ValueError(f"Content with ID {content_id} not found")
 
-    if content.status not in ["scheduled", "approved"]:
-        raise HTTPException(status_code=400, detail="Only approved or scheduled content can be posted")
+    if content.status not in ["approved", "scheduled"]:
+        raise ValueError("Content must be approved or scheduled before posting")
 
     try:
-        # Simulate post response (replace with real API call later)
-        response = {
-            "platform": content.platform,
-            "status": "success",
-            "post_id": f"mock-{content.id}-{datetime.utcnow().isoformat()}"
-        }
+        response = {}
+        if dry_run:
+            logging.info(f"[DRY RUN] Would post content ID {content.id} to {content.platform}")
+            response = {
+                "platform_posted_id": "dry_run_id",
+                "post_response": "Dry run mode enabled. No request made."
+            }
 
+        elif content.platform == "typefully":
+            response = post_to_typefully(content.generated_content, scheduled_for=content.scheduled_for)
+
+        elif content.platform == "x":
+            # 🔧 TODO: Lookup user's access_token (requires user onboarding flow)
+            raise NotImplementedError("Twitter posting not yet implemented. OAuth flow required.")
+
+        else:
+            raise ValueError(f"Unsupported platform: {content.platform}")
+
+        # Store result
         content.status = "posted"
         content.posted_at = datetime.utcnow()
-        content.post_response = str(response)
+        content.post_response = response.get("post_response")
+        content.platform_posted_id = response.get("platform_posted_id")
+        db.commit()
+
+        return {"success": True, "message": "Posted successfully", "platform_posted_id": content.platform_posted_id}
 
     except Exception as e:
+        logging.error(f"Error posting content ID {content_id}: {e}")
         content.status = "failed"
         content.error_message = str(e)
-
-    db.commit()
-    return {"success": True, "message": f"Content marked as {content.status}"}
+        db.commit()
+        return {"success": False, "message": "Posting failed", "error": str(e)}

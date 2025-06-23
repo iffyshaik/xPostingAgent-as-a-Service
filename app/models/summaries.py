@@ -19,3 +19,4 @@ class Summary(Base):
     is_used = Column(Boolean, default=False)
 
     created_at = Column(TIMESTAMP, server_default=func.now())
+

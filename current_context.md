@@ -4,7 +4,7 @@ This document captures the full current state of the codebase, to ensure any dev
 
 ---
 
-## 📁 Project Folder Structure (as of 2025-06-20)
+## 📁 Project Folder Structure (as of 2025-06-23)
 
 ```
 xPostingAgent-as-a-Service/
@@ -13,7 +13,7 @@ xPostingAgent-as-a-Service/
 │   ├── main.py
 │   ├── config.py
 │   ├── database.py
-│   ├── dependencies.py                  # ✅ NEW – shared Depends() providers
+│   ├── dependencies.py                  # ✅ shared Depends() providers
 │   ├── models/
 │   │   ├── users.py
 │   │   ├── requests.py
@@ -21,11 +21,11 @@ xPostingAgent-as-a-Service/
 │   │   ├── research_sources.py
 │   │   ├── topic_source_usage.py
 │   │   ├── content_queue.py
-│   │   ├── thread_metadata.py
+│   │   └── thread_metadata.py
 │   ├── agents/
 │   │   ├── topic_agent.py
 │   │   ├── research_agent.py
-│   │   ├── content_agent.py
+│   │   └── content_agent.py
 │   ├── services/
 │   │   ├── google_search.py
 │   │   ├── ai_source_discovery.py
@@ -33,20 +33,27 @@ xPostingAgent-as-a-Service/
 │   │   ├── embedding_similarity.py
 │   │   ├── source_reuse.py
 │   │   ├── content_validation.py
-│   │   ├── content_queue.py             # ✅ NEW – approve/schedule/post logic
+│   │   ├── content_queue.py             # ✅ approve/schedule/post logic
+│   │   └── platform_publisher.py        # ✅ NEW – Typefully + X platform posting logic
 │   ├── utils/
 │   │   ├── hash.py
-│   │   ├── offensive_filter.py
+│   │   └── offensive_filter.py
 │   ├── api/
 │   │   ├── auth.py
-│   │   ├── content_queue.py             # ✅ NEW – routes for queue lifecycle
+│   │   └── content_queue.py             # ✅ routes for queue lifecycle
 │
 ├── app/tests/
 │   ├── test_topic_agent.py
 │   ├── test_topic_source_usage.py
 │   ├── test_run_research_agent.py
 │   ├── test_content_agent.py
-│   ├── test_content_queue.py            # ✅ NEW – tests for approval/schedule/post
+│   ├── test_content_queue.py            # ✅ tests for approval/schedule/post
+│   └── test_platform_publisher.py       # ✅ NEW – unit tests for Typefully integration
+│
+├── scripts/                             # ✅ Developer utility scripts
+│   ├── insert_test_content.py           # Insert test rows into content_queue
+│   ├── run_post_content.py              # Run post_content() manually
+│   └── reset_content_status.py          # Reset content row for re-testing
 │
 ├── alembic/
 │   └── versions/
@@ -86,17 +93,22 @@ xPostingAgent-as-a-Service/
 * `validate_article_length(content, max_words)`: Raises ValueError if word count exceeds limit.
 * `validate_thread_structure(tweets, max_tweets, max_chars)`: Flags (but does not truncate) tweets that exceed allowed length; returns tweets unchanged.
 
-### services/content\_queue.py ✅ NEW
+### services/content\_queue.py
 
 * `approve_content(content_id, db)`: Validates structure and checks offensiveness. Updates status to "approved".
 * `schedule_content(content_id, scheduled_for, db)`: Updates status to "scheduled" with future timestamp.
-* `post_content(content_id, db)`: Simulates posting logic; updates status to "posted" or "failed".
+* `post_content(content_id, db, dry_run=False)`: Routes post to correct platform. Stores result or error.
+
+### services/platform\_publisher.py ✅ NEW
+
+* `post_to_typefully(content, scheduled_for=None)`: Posts to Typefully via API. Adds `threadify` and `share`. Uses `X-API-KEY`. Returns `platform_posted_id` and full response.
+* `post_to_x(...)`: Placeholder for Twitter/X integration. Not yet implemented.
 
 ---
 
 ## 🔐 Dependencies
 
-### dependencies.py ✅ NEW
+### dependencies.py
 
 * `get_db()`: Yields SQLAlchemy session from SessionLocal.
 * `get_current_user()`: Extracts user ID from JWT token using `OAuth2PasswordBearer`.
@@ -115,7 +127,7 @@ xPostingAgent-as-a-Service/
 
 ---
 
-## 🧬 Models
+## 🔖 Models
 
 ### models/users.py
 
@@ -141,6 +153,7 @@ xPostingAgent-as-a-Service/
 ### models/content\_queue.py
 
 * `id`, `request_id`, `user_id`, `content_type`, `generated_content`, `status`, `scheduled_for`, `platform`, `post_response`, `error_message`, `created_at`, `posted_at`
+* ✅ NEW: `platform_posted_id`: external ID for auditing or reply threading
 
 ### models/thread\_metadata.py
 
@@ -154,11 +167,11 @@ xPostingAgent-as-a-Service/
 
 * POST `/auth/register`, `/auth/login` — Delegates to `auth_service.py`
 
-### api/content\_queue.py ✅ NEW
+### api/content\_queue.py
 
 * PUT `/content/queue/{content_id}/approve`: Validates and approves draft
 * PUT `/content/queue/{content_id}/schedule`: Schedules future posting
-* POST `/content/queue/{content_id}/post`: Simulates post or marks as failed
+* POST `/content/queue/{content_id}/post`: Posts to platform (now fully implemented for Typefully)
 
 ---
 
@@ -168,12 +181,17 @@ xPostingAgent-as-a-Service/
 
 * Validates prompt, filters, citation logic
 
-### tests/test\_content\_queue.py ✅ NEW
+### tests/test\_content\_queue.py
 
 * `test_approve_content_success()`: Asserts status moves to "approved"
 * `test_schedule_content_success()`: Asserts future time is accepted
 * `test_post_content_success()`: Asserts post logic and result stored
 * ⚠️ Uses `ContentQueue.__table__.create()` to avoid ARRAY errors with SQLite
+
+### tests/test\_platform\_publisher.py ✅ NEW
+
+* `test_post_to_typefully_success()`: Mocks successful post
+* `test_post_to_typefully_failure()`: Mocks 400 error and validates exception raised
 
 ---
 
@@ -182,6 +200,7 @@ xPostingAgent-as-a-Service/
 ### .env
 
 * `ENABLE_OFFENSIVE_CHECK=true`
+* `TYPEFULLY_API_KEY`, `X_API_KEY`, `X_API_SECRET` are required for posting
 
 ### config.py
 
@@ -198,7 +217,9 @@ xPostingAgent-as-a-Service/
 * [ ] Add system config overrides for platforms (e.g. post window, max retries)
 * [ ] Add retry/backoff logic for failed posting
 * [ ] Track all transitions (draft → approved → scheduled/post) in an audit table
+* [ ] Implement Twitter OAuth and posting support
+* [ ] Add integration tests for `/content/queue/{id}/post` endpoint
 
 ---
 
-✅ You are now fully up to date as of 2025-06-20.
+📅 You are now fully up to date as of 2025-06-23.

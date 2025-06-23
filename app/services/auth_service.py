@@ -10,7 +10,6 @@ from passlib.hash import bcrypt
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from fastapi import HTTPException, Depends
-from fastapi.security import OAuth2PasswordBearer
 from app.config import settings
 
 from sqlalchemy.orm import Session
@@ -46,14 +45,7 @@ def create_token(user_id: int) -> str:
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-# JWT decoding + user validation
-def get_current_user(token: str = Depends(oauth2_scheme)) -> int:
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = int(payload["sub"])
-        return user_id
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+
 
 # Dummy logic to plug into DB later
 def register_user(payload):

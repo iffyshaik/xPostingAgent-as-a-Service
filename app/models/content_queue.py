@@ -26,6 +26,7 @@ class ContentQueue(Base):
 
     created_at = Column(DateTime, server_default=func.now())
     posted_at = Column(DateTime, nullable=True)
+    platform_posted_id = Column(String, nullable=True)
 
     # Optional: relationships
     request = relationship("Request", backref="content_queue")
