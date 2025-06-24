@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     openai_model_topic_agent: str = "gpt-4"
     openai_model_summary_agent: str = "gpt-4.1"
     openai_model_content_agent: str = "gpt-4.1"
-    openai_model_research_agent: str = "gpt-4-turbo"
+    openai_model_research_agent: str = "gpt-4.1"
 
     #Feature Toggles
     enable_offensive_check: bool = True  # Toggle for content profanity check

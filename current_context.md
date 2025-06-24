@@ -21,10 +21,12 @@ xPostingAgent-as-a-Service/
 │   │   ├── research_sources.py
 │   │   ├── topic_source_usage.py
 │   │   ├── content_queue.py
-│   │   └── thread_metadata.py
+│   │   ├── thread_metadata.py
+│   │   └── user_configurations.py
 │   ├── agents/
 │   │   ├── topic_agent.py
 │   │   ├── research_agent.py
+│   │   ├── summary_agent.py             # ✅ NEW — consolidates summaries and key points
 │   │   └── content_agent.py
 │   ├── services/
 │   │   ├── google_search.py
@@ -34,7 +36,7 @@ xPostingAgent-as-a-Service/
 │   │   ├── source_reuse.py
 │   │   ├── content_validation.py
 │   │   ├── content_queue.py             # ✅ approve/schedule/post logic
-│   │   └── platform_publisher.py        # ✅ NEW – Typefully + X platform posting logic
+│   │   └── platform_publisher.py        # ✅ Typefully + X platform posting logic
 │   ├── utils/
 │   │   ├── hash.py
 │   │   └── offensive_filter.py
@@ -48,12 +50,13 @@ xPostingAgent-as-a-Service/
 │   ├── test_run_research_agent.py
 │   ├── test_content_agent.py
 │   ├── test_content_queue.py            # ✅ tests for approval/schedule/post
-│   └── test_platform_publisher.py       # ✅ NEW – unit tests for Typefully integration
+│   └── test_platform_publisher.py       # ✅ Typefully integration unit tests
 │
-├── scripts/                             # ✅ Developer utility scripts
-│   ├── insert_test_content.py           # Insert test rows into content_queue
-│   ├── run_post_content.py              # Run post_content() manually
-│   └── reset_content_status.py          # Reset content row for re-testing
+├── scripts/
+│   ├── insert_test_content.py
+│   ├── run_post_content.py
+│   ├── reset_content_status.py
+│   └── full_pipeline_test.py            # ✅ NEW — end-to-end test: topic → post
 │
 ├── alembic/
 │   └── versions/
@@ -70,19 +73,46 @@ xPostingAgent-as-a-Service/
 
 ### agents/topic\_agent.py
 
-* `generate_refined_topic()`: Refines a user-submitted topic into a more specific and engaging one using LLM. Stores in requests.content\_topic.
+* `generate_content_topic(request_id, original_topic, user_config, content_type, user_id)`
+
+  * Uses LLM to transform a general topic into a more specific and engaging one.
+  * Updates the request with the refined topic and sets status to "researching".
 
 ### agents/research\_agent.py
 
-* `generate_research_sources()`: Full pipeline to fetch, verify, deduplicate, and rank sources (AI + Google). Saves to research\_sources and logs access issues to topic\_source\_usage.
+* `generate_research_sources(request_id, content_topic, user_id, limit, preference)`
+
+  * Combines AI and Google search.
+  * Deduplicates, verifies, scores, stores relevant sources in `research_sources`.
+  * Continues gracefully if 0 sources found.
+
+### agents/summary\_agent.py ✅ NEW
+
+* `generate_and_store_summary(request_id, verified_sources, target_length, content_type, user_id)`
+
+  * Combines source summaries, deduplicates key points.
+  * Prompts LLM for combined summary and key points.
+  * Stores result in `summaries` table.
 
 ### agents/content\_agent.py
 
-* `create_content()`: Main entry point for the content generation agent. Builds prompt, calls LLM, validates output, stores in content\_queue.
-* `build_content_prompt()`: Dynamically constructs the LLM prompt using persona, tone, style, tweet/article specs, and citation config.
-* `select_top_citations()`: Selects top N sources based on relevance and freshness scores.
-* `check_offensive_content()`: Uses a profanity library to detect NSFW or sensitive content based on .env flag.
-* `store_thread_metadata()`: (If content is a thread) stores structured output including tweet objects and citation tweets.
+* `create_content(db, request, summary, research_sources, user_config)`
+
+  * Builds LLM prompt using summary, config, and content type.
+  * Generates full thread or article.
+  * Stores in `content_queue`; saves `thread_metadata` if applicable.
+
+* `build_content_prompt(...)`
+
+  * Dynamically builds prompt from summary + config.
+
+* `split_into_tweets(text, max_count)`
+
+  * Splits by newline (naïve method). Future improvement: smarter tweet segmentation.
+
+* `select_top_citations(sources, max_count)`
+
+  * Ranks citations by relevance + freshness.
 
 ---
 
@@ -90,19 +120,31 @@ xPostingAgent-as-a-Service/
 
 ### services/content\_validation.py
 
-* `validate_article_length(content, max_words)`: Raises ValueError if word count exceeds limit.
-* `validate_thread_structure(tweets, max_tweets, max_chars)`: Flags (but does not truncate) tweets that exceed allowed length; returns tweets unchanged.
+* `validate_article_length(content, max_words)`
+* `validate_thread_structure(tweets, max_tweets, max_chars)`
 
 ### services/content\_queue.py
 
-* `approve_content(content_id, db)`: Validates structure and checks offensiveness. Updates status to "approved".
-* `schedule_content(content_id, scheduled_for, db)`: Updates status to "scheduled" with future timestamp.
-* `post_content(content_id, db, dry_run=False)`: Routes post to correct platform. Stores result or error.
+* `approve_content(content_id, db)`
 
-### services/platform\_publisher.py ✅ NEW
+  * Validates format and offensive check.
+  * ✅ Handles both JSON and plain text tweet formats gracefully.
 
-* `post_to_typefully(content, scheduled_for=None)`: Posts to Typefully via API. Adds `threadify` and `share`. Uses `X-API-KEY`. Returns `platform_posted_id` and full response.
-* `post_to_x(...)`: Placeholder for Twitter/X integration. Not yet implemented.
+* `schedule_content(content_id, scheduled_for, db)`
+
+  * ✅ Now uses timezone-aware datetime.
+  * Validates future timestamp.
+
+* `post_content(content_id, db, dry_run=False)`
+
+  * Posts to platform based on `content.platform`
+  * ✅ Typefully integration implemented.
+  * Saves `platform_posted_id` and `post_response`.
+
+### services/platform\_publisher.py
+
+* `post_to_typefully(content, scheduled_for=None)`
+* `post_to_x(...)` — Not implemented
 
 ---
 
@@ -110,8 +152,8 @@ xPostingAgent-as-a-Service/
 
 ### dependencies.py
 
-* `get_db()`: Yields SQLAlchemy session from SessionLocal.
-* `get_current_user()`: Extracts user ID from JWT token using `OAuth2PasswordBearer`.
+* `get_db()`
+* `get_current_user()` — Uses JWT auth
 
 ---
 
@@ -119,45 +161,21 @@ xPostingAgent-as-a-Service/
 
 ### utils/hash.py
 
-* `hash_string_sha256(string)`: SHA256 hashing for anonymising topics and URLs (used in source reuse).
+* `hash_string_sha256(string)`
 
 ### utils/offensive\_filter.py
 
-* `check_offensive_content(text)`: Returns True if profanity is detected using better\_profanity.
+* `check_offensive_content(text)`
 
 ---
 
 ## 🔖 Models
 
-### models/users.py
+Key models include:
 
-* `id`, `email`, `password_hash`, `subscription_tier`, `api_quota_daily`, `api_quota_used_today`, `created_at`, `updated_at`
+* `users.py`, `requests.py`, `summaries.py`, `research_sources.py`, `content_queue.py`, `thread_metadata.py`, `topic_source_usage.py`, `user_configurations.py`, `system_configurations.py`, `user_sessions.py`
 
-### models/requests.py
-
-* `id`, `user_id`, `original_topic`, `content_topic`, `status`, `content_type`, `auto_post`, `platform`, `thread_tweet_count`, `max_article_length`, `include_source_citations`, `citation_count`, `created_at`, `updated_at`, `error_message`
-* 🔧 TODO: Switch to Session.get() where `.query().get()` is used
-
-### models/summaries.py
-
-* Contains unsupported ARRAY column (`Text[]`) for SQLite tests
-
-### models/research\_sources.py
-
-* `id`, `request_id`, `user_id`, `source_type`, `url`, `title`, `author`, `verification_status`, `relevance_score`, `freshness_score`, `summary`, `key_points[]`, `is_used`
-
-### models/topic\_source\_usage.py
-
-* Tracks reuse of sources per topic hash
-
-### models/content\_queue.py
-
-* `id`, `request_id`, `user_id`, `content_type`, `generated_content`, `status`, `scheduled_for`, `platform`, `post_response`, `error_message`, `created_at`, `posted_at`
-* ✅ NEW: `platform_posted_id`: external ID for auditing or reply threading
-
-### models/thread\_metadata.py
-
-* `id`, `content_queue_id`, `requested_tweet_count`, `actual_tweet_count`, `max_tweet_length`, `thread_structure`, `citation_tweets`, `created_at`
+All use SQLAlchemy with PostgreSQL fields.
 
 ---
 
@@ -165,33 +183,25 @@ xPostingAgent-as-a-Service/
 
 ### api/auth.py
 
-* POST `/auth/register`, `/auth/login` — Delegates to `auth_service.py`
+* POST `/auth/register`, `/auth/login`
 
 ### api/content\_queue.py
 
-* PUT `/content/queue/{content_id}/approve`: Validates and approves draft
-* PUT `/content/queue/{content_id}/schedule`: Schedules future posting
-* POST `/content/queue/{content_id}/post`: Posts to platform (now fully implemented for Typefully)
+* PUT `/content/queue/{content_id}/approve`
+* PUT `/content/queue/{content_id}/schedule`
+* POST `/content/queue/{content_id}/post`
 
 ---
 
 ## 🧪 Tests
 
-### tests/test\_content\_agent.py
+* `test_content_queue.py` — lifecycle tests
+* `test_platform_publisher.py` — mocks post to Typefully
+* ✅ `scripts/full_pipeline_test.py` performs:
 
-* Validates prompt, filters, citation logic
-
-### tests/test\_content\_queue.py
-
-* `test_approve_content_success()`: Asserts status moves to "approved"
-* `test_schedule_content_success()`: Asserts future time is accepted
-* `test_post_content_success()`: Asserts post logic and result stored
-* ⚠️ Uses `ContentQueue.__table__.create()` to avoid ARRAY errors with SQLite
-
-### tests/test\_platform\_publisher.py ✅ NEW
-
-* `test_post_to_typefully_success()`: Mocks successful post
-* `test_post_to_typefully_failure()`: Mocks 400 error and validates exception raised
+  * DB wipe
+  * User + config creation
+  * Submit topic → all agent calls → approve → schedule → post
 
 ---
 
@@ -199,12 +209,11 @@ xPostingAgent-as-a-Service/
 
 ### .env
 
-* `ENABLE_OFFENSIVE_CHECK=true`
-* `TYPEFULLY_API_KEY`, `X_API_KEY`, `X_API_SECRET` are required for posting
+* Includes API keys, secret, Redis, PostgreSQL, etc.
 
 ### config.py
 
-* Loads secrets, keys, AI providers
+* Loads `.env` settings via `pydantic.BaseSettings`
 
 ---
 
@@ -212,14 +221,17 @@ xPostingAgent-as-a-Service/
 
 * [ ] Replace hardcoded validation values (e.g. 280 chars, 5000 words) with per-user config fallback to system defaults
 * [ ] Replace `db.query().get()` with `db.get()` in services and tests
-* [ ] Use timezone-aware `datetime.now(UTC)` instead of deprecated `datetime.utcnow()`
+* [ ] Use timezone-aware `datetime.now(UTC)` instead of deprecated `datetime.utcnow()` — ✅ partially done
 * [ ] Add Celery for async post-at-scheduled-time with jitter logic
 * [ ] Add system config overrides for platforms (e.g. post window, max retries)
 * [ ] Add retry/backoff logic for failed posting
 * [ ] Track all transitions (draft → approved → scheduled/post) in an audit table
 * [ ] Implement Twitter OAuth and posting support
 * [ ] Add integration tests for `/content/queue/{id}/post` endpoint
+* [ ] Improve tweet splitting: LLM format or NLP-based structure
+* [ ] Investigate Typefully timezone mismatch for schedule preview
+* [ ] Improve fallback logic when source count = 0 (e.g. skip citation logic)
 
 ---
 
-📅 You are now fully up to date as of 2025-06-23.
+📅 You are now fully up to date as of 2025-06-23 (post full pipeline test).

@@ -40,7 +40,15 @@ def approve_content(content_id: int, db: Session):
         validate_article_length(content.generated_content, max_words=5000)
     elif content.content_type == "thread":
         import json
-        tweets = json.loads(content.generated_content)
+
+        try:
+            # Try structured format first (e.g. ["tweet 1", "tweet 2"])
+            tweets = json.loads(content.generated_content)
+            assert isinstance(tweets, list)
+        except (json.JSONDecodeError, AssertionError):
+            # Fallback to naive newline splitting
+            tweets = [line.strip() for line in content.generated_content.split("\n") if line.strip()]
+
         validate_thread_structure(tweets, max_tweets=10, max_chars=280)
     else:
         raise HTTPException(status_code=400, detail="Unknown content type")
@@ -69,8 +77,9 @@ def schedule_content(content_id: int, scheduled_for: datetime, db: Session):
 
     if content.status != "approved":
         raise HTTPException(status_code=400, detail="Only approved content can be scheduled")
-
-    if scheduled_for < datetime.utcnow():
+    
+    from datetime import timezone
+    if scheduled_for < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Scheduled time must be in the future")
 
     # Optional: Validate platform compatibility here
