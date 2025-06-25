@@ -10,6 +10,9 @@ from app.api import auth,  content_queue, agent_pipeline
 from fastapi.openapi.utils import get_openapi
 from fastapi.security import HTTPBearer
 
+from fastapi.middleware.cors import CORSMiddleware
+
+
 # This defines the type of security scheme Swagger UI should use.
 # We're telling it to use HTTP Bearer tokens — the "Authorization: Bearer <token>" header.
 security_scheme = {
@@ -50,6 +53,15 @@ app = FastAPI(
     version="0.1.0",
     description="Handles user authentication and future agent interactions."
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Frontend origin
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # Include the authentication routes
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])

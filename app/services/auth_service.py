@@ -81,10 +81,24 @@ def login_user(payload, db: Session):
     """
     Verifies credentials and logs the user in by creating a session and returning a JWT.
     """
+    print(f"Login attempt: {payload.email} / {payload.password}")
     user = db.query(User).filter(User.email == payload.email).first()
-
-    if not user or not verify_password(payload.password, user.password_hash):
+    
+    if not user:
+        print("User not found")
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    if not verify_password(payload.password, user.password_hash):
+        print("Password mismatch")
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    print("Login successful")
+    
+
+
+
+    # if not user or not verify_password(payload.password, user.password_hash):
+    #     raise HTTPException(status_code=401, detail="Invalid email or password")
 
     # Generate JWT token
     token = create_token(user_id=user.id)
@@ -100,9 +114,20 @@ def login_user(payload, db: Session):
     db.add(session)
     db.commit()
 
+    # return {
+    #     "access_token": token,
+    #     "token_type": "bearer",
+    #     "user_id": user.id,
+    #     "email": user.email
+    # }
+
     return {
-        "access_token": token,
-        "token_type": "bearer",
-        "user_id": user.id,
-        "email": user.email
+        "success": True,
+        "data": {
+            "token": token,
+            "user_id": user.id,
+            "email": user.email
+        },
+        "error": None
     }
+

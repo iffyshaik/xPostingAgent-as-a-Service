@@ -32,3 +32,9 @@ pytest_cache/
 
 # PyInstaller
 *.spec
+
+#Frontend 
+node_modules/
+*.pyc
+
+
