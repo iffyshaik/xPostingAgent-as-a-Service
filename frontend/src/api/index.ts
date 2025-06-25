@@ -1,31 +1,39 @@
-// src/api/index.ts
-/**
- * Axios instance configured with base URL and JWT token handling.
- * Automatically includes Bearer token from localStorage on every request.
- */
+// frontend/src/api/index.ts
 
-import axios from "axios";
+import axios from 'axios';
 
-// You can later move this to an .env file
-const API_BASE_URL = "http://localhost:8000"; // FastAPI backend
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'; // fallback
 
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+const api = axios.create({
+  baseURL: API_BASE,
   headers: {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   },
 });
 
-// Add token to every request
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+// Automatically add JWT from localStorage
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
-export default apiClient;
+export interface SubmitTopicPayload {
+  original_topic: string;
+  content_type: 'thread' | 'article';
+  auto_post?: boolean;
+  thread_tweet_count?: number;
+  max_article_length?: number;
+  include_source_citations?: boolean;
+  citation_count?: number;
+  platform: 'x' | 'typefully';
+}
+
+export const submitTopic = async (payload: SubmitTopicPayload) => {
+  const response = await api.post('/content/requests', payload);
+  return response.data;
+};
+
+export default api;

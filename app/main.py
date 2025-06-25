@@ -84,3 +84,6 @@ app.include_router(user_config_seed.router)
 
 from app.api import dev_patch_summaries
 app.include_router(dev_patch_summaries.router)
+
+from app.api import users  # <- make sure this import is here
+app.include_router(users.router)

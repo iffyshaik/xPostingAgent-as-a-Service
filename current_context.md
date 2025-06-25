@@ -4,7 +4,7 @@ This document captures the full current state of the codebase, to ensure any dev
 
 ---
 
-## 📁 Project Folder Structure (as of 2025-06-23)
+## 📁 Project Folder Structure (as of 2025-06-24)
 
 ```
 xPostingAgent-as-a-Service/
@@ -13,7 +13,7 @@ xPostingAgent-as-a-Service/
 │   ├── main.py
 │   ├── config.py
 │   ├── database.py
-│   ├── dependencies.py                  # ✅ shared Depends() providers
+│   ├── dependencies.py
 │   ├── models/
 │   │   ├── users.py
 │   │   ├── requests.py
@@ -26,7 +26,7 @@ xPostingAgent-as-a-Service/
 │   ├── agents/
 │   │   ├── topic_agent.py
 │   │   ├── research_agent.py
-│   │   ├── summary_agent.py             # ✅ NEW — consolidates summaries and key points
+│   │   ├── summary_agent.py
 │   │   └── content_agent.py
 │   ├── services/
 │   │   ├── google_search.py
@@ -35,28 +35,33 @@ xPostingAgent-as-a-Service/
 │   │   ├── embedding_similarity.py
 │   │   ├── source_reuse.py
 │   │   ├── content_validation.py
-│   │   ├── content_queue.py             # ✅ approve/schedule/post logic
-│   │   └── platform_publisher.py        # ✅ Typefully + X platform posting logic
+│   │   ├── content_queue.py
+│   │   └── platform_publisher.py
 │   ├── utils/
 │   │   ├── hash.py
 │   │   └── offensive_filter.py
 │   ├── api/
 │   │   ├── auth.py
-│   │   └── content_queue.py             # ✅ routes for queue lifecycle
+│   │   ├── content_queue.py
+│   │   ├── content_requests.py
+│   │   ├── agent_pipeline.py
+│   │   ├── user_config_seed.py
+│   ├── schemas/
+│   │   └── content_requests.py
 │
 ├── app/tests/
 │   ├── test_topic_agent.py
 │   ├── test_topic_source_usage.py
 │   ├── test_run_research_agent.py
 │   ├── test_content_agent.py
-│   ├── test_content_queue.py            # ✅ tests for approval/schedule/post
-│   └── test_platform_publisher.py       # ✅ Typefully integration unit tests
+│   ├── test_content_queue.py
+│   └── test_platform_publisher.py
 │
 ├── scripts/
 │   ├── insert_test_content.py
 │   ├── run_post_content.py
 │   ├── reset_content_status.py
-│   └── full_pipeline_test.py            # ✅ NEW — end-to-end test: topic → post
+│   └── full_pipeline_test.py
 │
 ├── alembic/
 │   └── versions/
@@ -73,46 +78,22 @@ xPostingAgent-as-a-Service/
 
 ### agents/topic\_agent.py
 
-* `generate_content_topic(request_id, original_topic, user_config, content_type, user_id)`
-
-  * Uses LLM to transform a general topic into a more specific and engaging one.
-  * Updates the request with the refined topic and sets status to "researching".
+* `generate_content_topic(...)`
 
 ### agents/research\_agent.py
 
-* `generate_research_sources(request_id, content_topic, user_id, limit, preference)`
+* `generate_research_sources(...)`
 
-  * Combines AI and Google search.
-  * Deduplicates, verifies, scores, stores relevant sources in `research_sources`.
-  * Continues gracefully if 0 sources found.
+### agents/summary\_agent.py
 
-### agents/summary\_agent.py ✅ NEW
-
-* `generate_and_store_summary(request_id, verified_sources, target_length, content_type, user_id)`
-
-  * Combines source summaries, deduplicates key points.
-  * Prompts LLM for combined summary and key points.
-  * Stores result in `summaries` table.
+* `generate_and_store_summary(...)`
 
 ### agents/content\_agent.py
 
-* `create_content(db, request, summary, research_sources, user_config)`
-
-  * Builds LLM prompt using summary, config, and content type.
-  * Generates full thread or article.
-  * Stores in `content_queue`; saves `thread_metadata` if applicable.
-
+* `create_content(...)`
 * `build_content_prompt(...)`
-
-  * Dynamically builds prompt from summary + config.
-
-* `split_into_tweets(text, max_count)`
-
-  * Splits by newline (naïve method). Future improvement: smarter tweet segmentation.
-
-* `select_top_citations(sources, max_count)`
-
-  * Ranks citations by relevance + freshness.
+* `split_into_tweets(...)`
+* `select_top_citations(...)`
 
 ---
 
@@ -120,40 +101,32 @@ xPostingAgent-as-a-Service/
 
 ### services/content\_validation.py
 
-* `validate_article_length(content, max_words)`
-* `validate_thread_structure(tweets, max_tweets, max_chars)`
+* `validate_article_length(...)`
+* `validate_thread_structure(...)`
 
 ### services/content\_queue.py
 
-* `approve_content(content_id, db)`
-
-  * Validates format and offensive check.
-  * ✅ Handles both JSON and plain text tweet formats gracefully.
-
-* `schedule_content(content_id, scheduled_for, db)`
-
-  * ✅ Now uses timezone-aware datetime.
-  * Validates future timestamp.
-
-* `post_content(content_id, db, dry_run=False)`
-
-  * Posts to platform based on `content.platform`
-  * ✅ Typefully integration implemented.
-  * Saves `platform_posted_id` and `post_response`.
+* `approve_content(...)`
+* `schedule_content(...)`
+* `post_content(...)`
 
 ### services/platform\_publisher.py
 
-* `post_to_typefully(content, scheduled_for=None)`
-* `post_to_x(...)` — Not implemented
+* `post_to_typefully(...)`
+* `post_to_x(...)`
 
 ---
 
-## 🔐 Dependencies
+## 🔐 Auth & Dependencies
+
+### api/auth.py
+
+* `POST /auth/register`, `POST /auth/login`
 
 ### dependencies.py
 
 * `get_db()`
-* `get_current_user()` — Uses JWT auth
+* `get_current_user()`
 
 ---
 
@@ -161,35 +134,60 @@ xPostingAgent-as-a-Service/
 
 ### utils/hash.py
 
-* `hash_string_sha256(string)`
+* `hash_string_sha256(...)`
 
 ### utils/offensive\_filter.py
 
-* `check_offensive_content(text)`
+* `check_offensive_content(...)`
 
 ---
 
 ## 🔖 Models
 
-Key models include:
+Key models:
 
-* `users.py`, `requests.py`, `summaries.py`, `research_sources.py`, `content_queue.py`, `thread_metadata.py`, `topic_source_usage.py`, `user_configurations.py`, `system_configurations.py`, `user_sessions.py`
-
-All use SQLAlchemy with PostgreSQL fields.
+* `users`, `requests`, `summaries`, `research_sources`, `content_queue`, `thread_metadata`, `topic_source_usage`, `user_configurations`, `system_configurations`, `user_sessions`
 
 ---
 
 ## 🔌 API Layer
 
-### api/auth.py
+### api/content\_requests.py
 
-* POST `/auth/register`, `/auth/login`
+* `POST /content/requests`
+
+### api/agent\_pipeline.py
+
+* `POST /pipeline/{request_id}/topic`
+* `POST /pipeline/{request_id}/research`
+* `POST /pipeline/{request_id}/summary`
+* `POST /pipeline/{request_id}/content`
 
 ### api/content\_queue.py
 
-* PUT `/content/queue/{content_id}/approve`
-* PUT `/content/queue/{content_id}/schedule`
-* POST `/content/queue/{content_id}/post`
+* `PUT /content/queue/{id}/approve`
+* `PUT /content/queue/{id}/schedule`
+* `POST /content/queue/{id}/post`
+
+### api/user\_config\_seed.py
+
+* `POST /dev/create-user-config`
+
+### api/users.py
+
+* `GET /users/configurations`
+  - Returns the current user's configuration
+  - Auto-creates a default config row if missing
+
+* `PUT /users/configurations`
+  - Updates the user_configurations row
+  - Accepts optional fields: `persona`, `tone`, `style`, `language`, `platform_preference`, `research_preference`
+
+### schemas/user_configurations.py
+
+* `UpdateUserConfig(BaseModel)`
+  - Optional fields for updating user configuration
+  - Used in `PUT /users/configurations`
 
 ---
 
@@ -197,27 +195,14 @@ All use SQLAlchemy with PostgreSQL fields.
 
 * `test_content_queue.py` — lifecycle tests
 * `test_platform_publisher.py` — mocks post to Typefully
-* ✅ `scripts/full_pipeline_test.py` performs:
-
-  * DB wipe
-  * User + config creation
-  * Submit topic → all agent calls → approve → schedule → post
-
----
-
-## ⚙️ Config
-
-### .env
-
-* Includes API keys, secret, Redis, PostgreSQL, etc.
-
-### config.py
-
-* Loads `.env` settings via `pydantic.BaseSettings`
+* ✅ `scripts/full_pipeline_test.py` performs full agent + post pipeline
+* ✅ As of 2025-06-24: Full pipeline tested manually through Swagger
 
 ---
 
 ## 🔮 Future Enhancements & TODOs
+
+### 🔁 Existing TODOs
 
 * [ ] Replace hardcoded validation values (e.g. 280 chars, 5000 words) with per-user config fallback to system defaults
 * [ ] Replace `db.query().get()` with `db.get()` in services and tests
@@ -232,6 +217,25 @@ All use SQLAlchemy with PostgreSQL fields.
 * [ ] Investigate Typefully timezone mismatch for schedule preview
 * [ ] Improve fallback logic when source count = 0 (e.g. skip citation logic)
 
+### 🧪 New Issues from Manual Pipeline Test
+
+* [ ] Improve Research Agent fallback logic when 0 usable sources are found
+
+  * Retry with alternate keywords
+  * Use dev-mode mock sources
+  * Lower relevance threshold in dev
+* [ ] Research Agent doesn’t currently extract/generate summaries for sources
+
+  * Add summary + key\_point extraction during verification
+  * Use LLM if metadata is good
+* [ ] Summary Agent uses `summary IS NOT NULL` filter; sources with empty strings are skipped
+
+  * Confirm data is properly stored (non-empty string)
+  * Improve visibility/logging of inputs
+* [ ] Add logging before LLM call in summary agent to inspect empty cases
+* [ ] Add temporary endpoint to list all sources for a request for manual QA
+* [ ] Consider auto-creating user\_config upon registration to prevent topic agent failure
+
 ---
 
-📅 You are now fully up to date as of 2025-06-23 (post full pipeline test).
+📅 You are now fully up to date as of 2025-06-24 (after full manual pipeline test via Swagger UI).
