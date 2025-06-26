@@ -52,3 +52,26 @@ def update_user_configurations(
 
     return {"success": True, "data": config}
 
+
+@router.get("/users/usage-stats")
+def get_user_usage_stats(
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user)
+):
+    """
+    Return current user's API quota and usage stats.
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {
+        "success": True,
+        "data": {
+            "api_quota_daily": user.api_quota_daily,
+            "api_quota_used_today": user.api_quota_used_today,
+            "quota_reset_date": user.quota_reset_date
+        },
+        "error": None
+    }
+

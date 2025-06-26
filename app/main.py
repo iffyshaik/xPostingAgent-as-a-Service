@@ -78,12 +78,12 @@ from app.api import content_requests  # 👈 add this
 
 app.include_router(content_requests.router)  # 👈 add this too
 
-#FOR TESTING
-from app.api import user_config_seed
-app.include_router(user_config_seed.router)
-
-from app.api import dev_patch_summaries
-app.include_router(dev_patch_summaries.router)
+# #FOR TESTING
+# from app.api import user_config_seed
+# app.include_router(user_config_seed.router)
+# #FOR TESTING
+# from app.api import dev_patch_summaries
+# app.include_router(dev_patch_summaries.router)
 
 from app.api import users  # <- make sure this import is here
 app.include_router(users.router)

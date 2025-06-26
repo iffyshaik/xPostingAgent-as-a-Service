@@ -14,10 +14,6 @@ def build_topic_prompt(original_topic: str, user_config: dict, content_type: str
     template_str = """
 You are an expert content strategist. Transform the following topic into an engaging, specific angle that would make for compelling {{ content_type }} content.
 
-User's writing style: {{ persona }}
-Tone preference: {{ tone }}
-Content style: {{ style }}
-
 Original topic: {{ original_topic }}
 
 Generate a specific, engaging angle or question that:
@@ -44,3 +40,8 @@ Respond with only the refined content topic, no explanation.
     )
 
     return rendered_prompt.strip()
+
+
+# User's writing style: {{ persona }}
+# Tone preference: {{ tone }}
+# Content style: {{ style }}

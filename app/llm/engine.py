@@ -44,7 +44,7 @@ def generate_completion(prompt: str, model_name: str = None, agent: str = "defau
             {"role": "user", "content": prompt}
         ],
         temperature=0.7,
-        max_tokens=300
+        max_tokens=1500
     )
 
     return response.choices[0].message.content.strip()

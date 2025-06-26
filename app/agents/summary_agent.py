@@ -90,3 +90,4 @@ def generate_and_store_summary(request_id: int, verified_sources: list[dict], ta
         )
         session.add(summary_obj)
         session.commit()
+

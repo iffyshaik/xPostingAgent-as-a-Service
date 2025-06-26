@@ -15,3 +15,20 @@ class CreateContentRequest(BaseModel):
     include_source_citations: Optional[bool] = True
     citation_count: Optional[int] = 2
     platform: Literal["x", "typefully"] = "typefully"
+
+
+
+from datetime import datetime
+
+class RequestListItem(BaseModel):
+    id: int
+    original_topic: str
+    content_topic: Optional[str]
+    content_type: str
+    status: str
+    platform: str
+    created_at: datetime
+
+    class Config:
+        orm_mode = True
+
