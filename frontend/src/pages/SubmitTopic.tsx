@@ -4,6 +4,8 @@ import Input from '../components/Input';
 import Select from '../components/Select';
 import Layout from '../components/Layout';
 import { submitTopic } from '../api';
+import api from "../api";
+
 
 const SubmitTopic: React.FC = () => {
   const [topic, setTopic] = useState('');
@@ -15,40 +17,93 @@ const SubmitTopic: React.FC = () => {
 
   // Advanced settings
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [persona, setPersona] = useState("Professional and engaging");
   const [tone, setTone] = useState('');
   const [style, setStyle] = useState('');
   const [language, setLanguage] = useState('');
   const [autoPost, setAutoPost] = useState(false);
   const [includeCitations, setIncludeCitations] = useState(false);
 
+
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setSuccessMsg('');
-    setErrorMsg('');
+  e.preventDefault();
+  setLoading(true);
+  setSuccessMsg('');
+  setErrorMsg('');
 
-    try {
-      const payload: any = {
-        original_topic: topic,
-        content_type: contentType,
-        platform,
-        auto_post: autoPost,
-        include_source_citations: includeCitations,
-      };
+  try {
+    // Step 1: Prepare the request payload
+    const payload: any = {
+      original_topic: topic,
+      content_type: contentType,
+      platform,
+      auto_post: autoPost,
+      include_source_citations: includeCitations,
+    };
 
-      //if (tone) payload.tone = tone;
-      //if (style) payload.style = style;
-      //if (language) payload.language = language;
-
-      await submitTopic(payload);
-      setSuccessMsg('Topic submitted successfully!');
-      setTopic('');
-    } catch (error: any) {
-      setErrorMsg(error?.response?.data?.error || 'Submission failed.');
-    } finally {
-      setLoading(false);
+    // ✅ Add persona if filled in
+    if (persona) {
+      payload.persona = persona;
     }
-  };
+
+    // Step 2: Submit the topic
+    const res = await submitTopic(payload);
+    const requestId = res.request_id;
+
+    // Step 3: Run the full agent pipeline
+    await api.post(`/pipeline/${requestId}/topic`);
+    await api.post(`/pipeline/${requestId}/research`);
+    await api.post(`/pipeline/${requestId}/summary`);
+    await api.post(`/pipeline/${requestId}/content`);
+
+    // Step 4: Show final result
+    if (autoPost) {
+      setSuccessMsg('✅ Content was posted successfully!');
+    } else {
+      setSuccessMsg('📝 Content generated. You can review it on the dashboard.');
+    }
+
+    // Clear form
+    setTopic('');
+  } catch (error: any) {
+    console.error(error);
+    setErrorMsg(error?.response?.data?.error || 'Submission failed.');
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+  // const handleSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   setLoading(true);
+  //   setSuccessMsg('');
+  //   setErrorMsg('');
+
+  //   try {
+  //     const payload: any = {
+  //       original_topic: topic,
+  //       content_type: contentType,
+  //       platform,
+  //       auto_post: autoPost,
+  //       include_source_citations: includeCitations,
+  //     };
+
+  //     //if (tone) payload.tone = tone;
+  //     //if (style) payload.style = style;
+  //     //if (language) payload.language = language;
+
+  //     await submitTopic(payload);
+  //     setSuccessMsg('Topic submitted successfully!');
+  //     setTopic('');
+  //   } catch (error: any) {
+  //     setErrorMsg(error?.response?.data?.error || 'Submission failed.');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+
 
   return (
     <Layout>
@@ -112,6 +167,24 @@ const SubmitTopic: React.FC = () => {
 
           {showAdvanced && (
             <div className="mb-6 border p-4 rounded-lg bg-gray-50">
+              
+              {/* ✅ Persona textarea */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1" htmlFor="persona">
+                  Persona (optional):
+                </label>
+                <textarea
+                  id="persona"
+                  value={persona}
+                  onChange={(e) => setPersona(e.target.value)}
+                  className="w-full border rounded p-2 text-sm"
+                  rows={2}
+                  placeholder="e.g. Thoughtful, witty, professional tone..."
+                />
+              </div>
+              
+              
+              
               <Select
                 label="Tone"
                 value={tone}
@@ -124,6 +197,7 @@ const SubmitTopic: React.FC = () => {
                   { value: 'serious', label: 'Serious' },
                 ]}
               />
+
               <Select
                 label="Style"
                 value={style}
@@ -135,6 +209,7 @@ const SubmitTopic: React.FC = () => {
                   { value: 'storytelling', label: 'Storytelling' },
                 ]}
               />
+
               <Select
                 label="Language"
                 value={language}
