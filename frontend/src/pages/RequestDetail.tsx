@@ -25,7 +25,13 @@ const RequestDetail = () => {
   }, [id]);
 
   const handleApprove = async () => {
+    if (!data?.content?.id) {
+      alert("No content ID found to approve.");
+      return;
+    }
+
     try {
+      console.log("Request detail:", data);
       await api.put(`/content/queue/${data.content.id}/approve`);
       alert("Content approved!");
       navigate("/dashboard");
