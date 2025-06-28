@@ -104,7 +104,7 @@ def generate_research_sources(
                     title=source.get("title", "N/A"),
                     author=source.get("authors", "N/A"),
                     verification_status="failed",
-                    access_status=status,
+                    access_status=status[:50],
                     verification_attempts=1,
                     last_verified_at=datetime.utcnow()
                 )

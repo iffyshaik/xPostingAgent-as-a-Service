@@ -96,14 +96,19 @@ def run_summary_agent(
         } for src in verified_sources
     ]
 
-    generate_and_store_summary(
+    summary_obj=generate_and_store_summary(
         request_id=request_id,
         verified_sources=source_data,
         target_length=500,
         content_type=request.content_type,
         user_id=user_id
     )
-    return {"success": True}
+    if summary_obj is None:
+        return {"success": False, "error": "No valid sources found to generate summary."}
+
+    return {"success": True, "summary_id": summary_obj.id}
+
+    
 
 
 @router.post("/{request_id}/content")

@@ -26,7 +26,7 @@ def post_to_typefully(content: str, scheduled_for: datetime = None):
 
     payload = {
         "content": content,
-        "threadify": True,
+        "threadify": False,
         "share": True
     }
 

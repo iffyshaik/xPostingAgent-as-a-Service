@@ -40,10 +40,22 @@ def create_content(
     )
 
     llm_output = generate_completion(prompt, agent="content_agent")
+    print("This is the twwet generation LLM output: \n{llm_output}")
 
     # Optional: Validate structure
     if request.content_type == "thread":
+        print(f"🔎 LLM output before splitting:\n{llm_output}\n")
+
         tweets = split_into_tweets(llm_output, request.thread_tweet_count)
+        print(f"🧵 Total tweets after splitting: {len(tweets)}")
+        #tweets = [f"{i+1}/{len(tweets)}  \n{t}" for i, t in enumerate(tweets)]
+
+        cleaned_tweets = clean_split_tweets(tweets)
+        joined_thread = join_tweets_for_platform(cleaned_tweets, platform=request.platform)
+
+        for i, t in enumerate(tweets):
+            print(f"Tweet {i+1} ({len(t)} chars): {t}\n")
+
         tweets = validate_thread_structure(tweets, request.thread_tweet_count)
     else:
         validate_article_length(llm_output, request.max_article_length)
@@ -53,13 +65,13 @@ def create_content(
         content_status = "flagged"
     else:
         content_status = "draft"
-
+    #joined_thread="\n\n".join(tweets)
     # Save content to content_queue
     new_content = ContentQueue(
         request_id=request.id,
         user_id=request.user_id,
         content_type=request.content_type,
-        generated_content=llm_output,
+        generated_content=joined_thread, #llm_output,
         status=content_status,
         scheduled_for=None,
         platform=request.platform,
@@ -87,42 +99,55 @@ def create_content(
 
     return new_content
 
-# --- Prompt Builder ---
+
 def build_content_prompt(summary, key_points, config, content_type, tweet_count, article_length, include_citations, citation_count, sources, max_tweet_length=None):
     """
     Build the prompt to send to the LLM based on user style and request config.
     """
     prompt = f"""
-You are a helpful AI assistant skilled in writing social media content.
-Generate a {content_type} based on the user's style and preferences.
+    You are a helpful AI assistant skilled in writing social media content.
+    Generate a {content_type} based on the user's style and preferences.
 
-Persona: {config.get('persona')}
-Tone: {config.get('tone')}
-Style: {config.get('style')}
-Language: {config.get('language')}
+    Persona: {config.get('persona')}
+    Tone: {config.get('tone')}
+    Style: {config.get('style')}
+    Language: {config.get('language')}
 
-Content should be:
-- Based on this summary: "{summary}"
-- Include key points:
-{chr(10).join(f"- {point}" for point in key_points)}
-- {'Include' if include_citations else 'Do not include'} source citations.
-- If citations are included, show up to {citation_count} most relevant ones.
-- {'Use citations at the end of each tweet or as final tweets.' if content_type == 'thread' else 'Include citations as a numbered list at the end.'}
-- Vary tweet lengths naturally (some short, some longer, max {max_tweet_length or 280} chars).
-- Target: {tweet_count} tweets or {article_length} words.
+    Content should be:
+    - Based on this summary: "{summary}"
+    - Include key points:
+    {chr(10).join(f"- {point}" for point in key_points)}
+    - {'Include' if include_citations else 'Do not include'} source citations.
+    - If citations are included, show up to {citation_count} most relevant ones.
+    - {'Use citations at the end of each tweet or as final tweets.' if content_type == 'thread' else 'Include citations as a numbered list at the end.'}
+    - Vary tweet lengths naturally (some short, some longer, max {max_tweet_length or 280} chars).
+    - Make sure no tweet is beyond the maximum tweet length. very important.
+    - Target: {tweet_count} tweets or {article_length} words.
 
-Generate now:
-"""
+    Structure the output for threads as follows:
+    - Each tweet separated by this exact marker: "===="
+    - Do not number tweets (no 1/6, 2/6)
+    - Include max 2 relevant hashtags per tweet
+    - Do not include sources or links directly — we’ll handle that elsewhere
+
+    
+    """
     return prompt.strip()
 
-# --- Tweet Splitter (Simple Placeholder) ---
-def split_into_tweets(text: str, max_count: int) -> list[str]:
-    """
-    Placeholder tweet splitter — assumes paragraphs per tweet.
-    Future: NLP sentence split + max_tweet_length enforcement.
-    """
-    lines = [line.strip() for line in text.split("\n") if line.strip()]
-    return lines[:max_count]
+
+import re
+
+def split_into_tweets(text: str, max_parts: int = 10) -> list[str]:
+    # Split on "====" surrounded by any whitespace (spaces, tabs, newlines)
+    tweets = re.split(r"\s*====\s*", text.strip())
+
+    # Limit to max tweets if needed
+    tweets = tweets[:max_parts]
+    total = len(tweets)
+
+    # Add numbering like 1/6, 2/6
+    numbered_tweets = [f"{i+1}/{total}  \n{tweet.strip()}" for i, tweet in enumerate(tweets)]
+    return numbered_tweets
 
 # Selects top N citations based on relevance and freshness
 def select_top_citations(sources: list, max_count: int) -> list:
@@ -140,3 +165,71 @@ def select_top_citations(sources: list, max_count: int) -> list:
         reverse=True
     )
     return sorted_sources[:max_count]
+
+
+def clean_split_tweets(tweets: list[str]) -> list[str]:
+    """
+    Cleans split tweets by trimming and removing empty entries.
+    """
+    return [t.strip() for t in tweets if t.strip()]
+
+def join_tweets_for_platform(tweets: list[str], platform: str) -> str:
+    """
+    Joins cleaned tweets appropriately for the given platform.
+
+    Args:
+        tweets: Cleaned list of tweet strings.
+        platform: 'typefully' or 'x'
+
+    Returns:
+        str: Joined tweet string ready to store or post.
+    """
+    if platform == "typefully":
+        return "\n\n\n\n".join(tweets)
+
+    elif platform == "x":
+        # Future: Use actual threading via Twitter/X API per tweet
+        # For now, join like Typefully
+        return "\n\n\n\n".join(tweets)
+
+    else:
+        raise ValueError(f"Unsupported platform: {platform}")
+
+
+
+
+# --- Prompt Builder ---
+# def build_content_prompt(summary, key_points, config, content_type, tweet_count, article_length, include_citations, citation_count, sources, max_tweet_length=None):
+#     """
+#     Build the prompt to send to the LLM based on user style and request config.
+#     """
+#     prompt = f"""
+# You are a helpful AI assistant skilled in writing social media content.
+# Generate a {content_type} based on the user's style and preferences.
+
+# Persona: {config.get('persona')}
+# Tone: {config.get('tone')}
+# Style: {config.get('style')}
+# Language: {config.get('language')}
+
+# Content should be:
+# - Based on this summary: "{summary}"
+# - Include key points:
+# {chr(10).join(f"- {point}" for point in key_points)}
+# - {'Include' if include_citations else 'Do not include'} source citations.
+# - If citations are included, show up to {citation_count} most relevant ones.
+# - {'Use citations at the end of each tweet or as final tweets.' if content_type == 'thread' else 'Include citations as a numbered list at the end.'}
+# - Vary tweet lengths naturally (some short, some longer, max {max_tweet_length or 280} chars).
+# - Target: {tweet_count} tweets or {article_length} words.
+
+# Generate now:
+# """
+#     return prompt.strip()
+
+# --- Tweet Splitter ---
+# def split_into_tweets(text: str, max_count: int) -> list[str]:
+#     """
+#     Future: NLP sentence split + max_tweet_length enforcement.
+#     """
+#     lines = [line.strip() for line in text.split("\n") if line.strip()]
+#     return lines[:max_count]

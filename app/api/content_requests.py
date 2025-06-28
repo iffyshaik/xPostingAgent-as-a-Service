@@ -11,6 +11,7 @@ from app.models.requests import Request
 from typing import List
 
 
+
 router = APIRouter(prefix="/content/requests", tags=["Content Requests"])
 
 @router.post("")
@@ -117,6 +118,7 @@ def get_request_detail(
                 "key_points": summary.combined_key_points if summary else [],
             },
             "content": {
+                "id": content.id if content else None,
                 "generated_content": content.generated_content if content else "",
                 "status": content.status if content else "missing"
             }

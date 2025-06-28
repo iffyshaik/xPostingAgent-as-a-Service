@@ -32,7 +32,10 @@ def approve_content_route(
     """
     Validates and approves draft content.
     """
-    return approve_content(content_id=content_id, db=db)
+    approve_content(content_id=content_id, db=db)
+    post_content(content_id, db)
+
+    return {"success": True} #approve_content(content_id=content_id, db=db)
 
 
 @router.put("/{content_id}/schedule")

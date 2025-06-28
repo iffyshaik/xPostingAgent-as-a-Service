@@ -73,8 +73,18 @@ def generate_and_store_summary(request_id: int, verified_sources: list[dict], ta
         content_type (str): 'thread' or 'article'.
         user_id (int): The user initiating the request.
     """
+    if not verified_sources:
+        print(f"⚠️ No verified sources provided for request {request_id}. Skipping summary generation.")
+        return None
+    
+    
     combined_summary_text = combine_summaries(verified_sources)
     combined_key_points = merge_key_points(verified_sources)
+    
+    if not combined_summary_text.strip():
+        print(f"⚠️ Empty combined summary for request {request_id}. Skipping.")
+        return None
+
     prompt = build_summary_prompt(combined_summary_text, combined_key_points, target_length, content_type)
     llm_output = generate_completion(prompt, agent="summary_agent")
     summary, final_key_points = parse_llm_output(llm_output)
@@ -90,4 +100,5 @@ def generate_and_store_summary(request_id: int, verified_sources: list[dict], ta
         )
         session.add(summary_obj)
         session.commit()
-
+        session.refresh(summary_obj)
+        return summary_obj
