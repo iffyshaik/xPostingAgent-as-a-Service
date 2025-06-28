@@ -106,7 +106,7 @@ const SubmitTopic: React.FC = () => {
 
 
   return (
-    <Layout>
+    <>
       <div className="max-w-xl mx-auto mt-10">
         <h1 className="text-2xl font-semibold mb-6">Submit New Topic</h1>
         <form onSubmit={handleSubmit}>
@@ -236,7 +236,7 @@ const SubmitTopic: React.FC = () => {
         {successMsg && <p className="text-green-600 mt-4">{successMsg}</p>}
         {errorMsg && <p className="text-red-600 mt-4">{errorMsg}</p>}
       </div>
-    </Layout>
+    </>
   );
 };
 

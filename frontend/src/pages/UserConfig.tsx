@@ -65,7 +65,7 @@ const UserConfig: React.FC = () => {
   if (loading) return <Layout><p>Loading...</p></Layout>;
 
   return (
-    <Layout>
+    <>
       <div className="max-w-xl mx-auto mt-10">
         <h1 className="text-2xl font-semibold mb-6">User Configuration</h1>
         <form onSubmit={handleSave}>
@@ -116,7 +116,7 @@ const UserConfig: React.FC = () => {
         {success && <p className="text-green-600 mt-4">{success}</p>}
         {error && <p className="text-red-600 mt-4">{error}</p>}
       </div>
-    </Layout>
+    </>
   );
 };
 
