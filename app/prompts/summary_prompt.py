@@ -36,7 +36,7 @@ Key Points:
 
 
 
-def build_source_summary_prompt(source_text: str, max_words: int = 150) -> str:
+def build_source_summary_prompt(source_text: str, max_words: int = 200) -> str:
     """
     Builds a prompt to summarise a single research source and extract 3-5 key points.
 

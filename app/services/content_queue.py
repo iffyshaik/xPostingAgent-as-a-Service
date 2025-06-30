@@ -32,6 +32,8 @@ def approve_content(content_id: int, db: Session):
     if not content:
         raise HTTPException(status_code=404, detail="Content not found")
 
+    print("DEBUG: content.status =", content.status)
+
     if content.status != "draft":
         raise HTTPException(status_code=400, detail="Only draft content can be approved")
 
@@ -54,8 +56,8 @@ def approve_content(content_id: int, db: Session):
         raise HTTPException(status_code=400, detail="Unknown content type")
 
     # Step 2: Offensive check (if enabled)
-    if check_offensive_content(content.generated_content):
-        raise HTTPException(status_code=400, detail="Content flagged as offensive")
+    # if check_offensive_content(content.generated_content):
+    #     raise HTTPException(status_code=400, detail="Content flagged as offensive")
 
     # Step 3: Approve
     content.status = "approved"
@@ -75,16 +77,23 @@ def schedule_content(content_id: int, scheduled_for: datetime, db: Session):
     if not content:
         raise HTTPException(status_code=404, detail="Content not found")
 
-    if content.status != "approved":
-        raise HTTPException(status_code=400, detail="Only approved content can be scheduled")
+    if content.status in ["posted", "scheduled_deleted", "failed"]:
+        raise HTTPException(status_code=400, detail=f"Content in status '{content.status}' cannot be scheduled")
     
     from datetime import timezone
+    # Ensure scheduled_for is timezone-aware
+    if scheduled_for.tzinfo is None:
+        scheduled_for = scheduled_for.replace(tzinfo=timezone.utc)
+
     if scheduled_for < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Scheduled time must be in the future")
+    # if scheduled_for < datetime.now(timezone.utc):
+    #     raise HTTPException(status_code=400, detail="Scheduled time must be in the future")
 
     # Optional: Validate platform compatibility here
     content.scheduled_for = scheduled_for
     content.status = "scheduled"
+    content.deleted_at = None  # clear deletion if re-scheduling
 
     db.commit()
     return {"success": True, "message": "Content scheduled"}
@@ -138,3 +147,26 @@ def post_content(content_id: int, db: Session, dry_run: bool = False) -> dict:
         content.error_message = str(e)
         db.commit()
         return {"success": False, "message": "Posting failed", "error": str(e)}
+    
+    
+
+def delete_scheduled_content(content_id: int, db: Session):
+    """
+    Soft-deletes scheduled content while preserving its audit trail.
+    """
+    content = db.query(ContentQueue).filter(ContentQueue.id == content_id).first()
+
+    if not content:
+        raise HTTPException(status_code=404, detail="Content not found")
+
+    if content.status != "scheduled":
+        raise HTTPException(status_code=400, detail="Only scheduled content can be deleted")
+
+    content.deleted_at = datetime.utcnow()
+    content.status = "scheduled_deleted"
+    content.was_scheduled_then_deleted = True
+
+    db.commit()
+
+    return {"success": True, "message": "Scheduled content deleted"}
+

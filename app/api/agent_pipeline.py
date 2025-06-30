@@ -123,6 +123,8 @@ def run_content_agent(
     request = db.query(Request).filter_by(id=request_id, user_id=user_id).first()
     config = db.query(UserConfiguration).filter_by(user_id=user_id).first()
     summary = db.query(Summary).filter_by(request_id=request_id).first()
+    if not summary:
+        raise HTTPException(status_code=400, detail="No summary found for this request")
     sources = db.query(ResearchSource).filter_by(
         request_id=request_id,
         verification_status="verified"

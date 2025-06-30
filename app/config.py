@@ -20,11 +20,11 @@ class Settings(BaseSettings):
     
     #AI Provider Config
     default_ai_provider: str = "openai"
-    openai_model: str = "gpt-4"
-    openai_model_topic_agent: str = "gpt-4"
+    openai_model: str = "gpt-4o"
+    openai_model_topic_agent: str = "gpt-4o"
     openai_model_summary_agent: str = "gpt-4.1"
-    openai_model_content_agent: str = "gpt-4.1"
-    openai_model_research_agent: str = "gpt-4.1"
+    openai_model_content_agent: str = "gpt-4o"
+    openai_model_research_agent: str = "gpt-4o"
 
     #Feature Toggles
     enable_offensive_check: bool = True  # Toggle for content profanity check

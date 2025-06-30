@@ -26,7 +26,11 @@ def create_content(
     """
     Generate content using LLM and save to content_queue (+ thread_metadata if thread).
     """
+    if not summary or not summary.combined_summary:
+        raise ValueError("Missing summary content. Cannot generate post.")
+    
     prompt = build_content_prompt(
+        request.content_topic,
         summary.combined_summary,
         summary.combined_key_points,
         user_config,
@@ -100,12 +104,12 @@ def create_content(
     return new_content
 
 
-def build_content_prompt(summary, key_points, config, content_type, tweet_count, article_length, include_citations, citation_count, sources, max_tweet_length=None):
+def build_content_prompt(topic,summary, key_points, config, content_type, tweet_count, article_length, include_citations, citation_count, sources, max_tweet_length=None):
     """
     Build the prompt to send to the LLM based on user style and request config.
     """
     prompt = f"""
-    You are a helpful AI assistant skilled in writing social media content.
+    You are a helpful AI assistant skilled in writing social media content and making viral content.
     Generate a {content_type} based on the user's style and preferences.
 
     Persona: {config.get('persona')}
@@ -113,9 +117,9 @@ def build_content_prompt(summary, key_points, config, content_type, tweet_count,
     Style: {config.get('style')}
     Language: {config.get('language')}
 
-    Content should be:
-    - Based on this summary: "{summary}"
-    - Include key points:
+    Content should be an original thought or commentary on the {topic} but making sure that it is not hallucinated or false by: 
+    - referencing facts in this summary: "{summary}"
+    - Include key points not as list items, but try weave them into the content if relevant, in a natural way:
     {chr(10).join(f"- {point}" for point in key_points)}
     - {'Include' if include_citations else 'Do not include'} source citations.
     - If citations are included, show up to {citation_count} most relevant ones.
@@ -129,6 +133,7 @@ def build_content_prompt(summary, key_points, config, content_type, tweet_count,
     - Do not number tweets (no 1/6, 2/6)
     - Include max 2 relevant hashtags per tweet
     - Do not include sources or links directly — we’ll handle that elsewhere
+    - Close off the thread or article naturally and invite discussion.
 
     
     """

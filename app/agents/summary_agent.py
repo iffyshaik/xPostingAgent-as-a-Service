@@ -75,6 +75,7 @@ def generate_and_store_summary(request_id: int, verified_sources: list[dict], ta
     """
     if not verified_sources:
         print(f"⚠️ No verified sources provided for request {request_id}. Skipping summary generation.")
+        
         return None
     
     

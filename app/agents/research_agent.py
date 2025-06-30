@@ -32,7 +32,7 @@ def generate_research_sources(
     request_id: int,
     content_topic: str,
     user_id: int,
-    limit: int = 5,
+    limit: int = 2,
     preference: str = "balanced"
 ) -> bool:
     """

@@ -13,9 +13,9 @@ DEFAULT_PROVIDER = settings.default_ai_provider
 
 # Agent-specific model mapping
 DEFAULT_MODELS = {
-    "topic_agent": settings.openai_model_topic_agent or "gpt-4",
+    "topic_agent": settings.openai_model_topic_agent or "gpt-4o",
     "summary_agent": settings.openai_model_summary_agent or "gpt-4-turbo",
-    "content_agent": settings.openai_model_content_agent or "gpt-4-turbo",
+    "content_agent": settings.openai_model_content_agent or "gpt-4o",
     "research_agent":settings.openai_model_research_agent or "gpt-4-turbo",
 }
 

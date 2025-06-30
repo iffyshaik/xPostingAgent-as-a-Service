@@ -120,7 +120,8 @@ def get_request_detail(
             "content": {
                 "id": content.id if content else None,
                 "generated_content": content.generated_content if content else "",
-                "status": content.status if content else "missing"
+                "status": content.status if content else "missing",
+                "deleted_at": content.deleted_at if content else None
             }
         }
     }

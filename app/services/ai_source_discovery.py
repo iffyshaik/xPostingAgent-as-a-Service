@@ -9,7 +9,7 @@ from typing import List, Dict
 from app.llm.engine import generate_completion
 from app.prompts.research_prompt import build_research_prompt
 
-def discover_sources_with_ai(content_topic: str, source_limit: int = 5, preference: str = "balanced") -> List[Dict]:
+def discover_sources_with_ai(content_topic: str, source_limit: int = 3, preference: str = "balanced") -> List[Dict]:
     """
     Calls LLM to suggest sources based on the content topic.
 

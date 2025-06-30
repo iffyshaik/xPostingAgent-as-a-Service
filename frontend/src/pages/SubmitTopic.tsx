@@ -53,8 +53,24 @@ const SubmitTopic: React.FC = () => {
     // Step 3: Run the full agent pipeline
     await api.post(`/pipeline/${requestId}/topic`);
     await api.post(`/pipeline/${requestId}/research`);
-    await api.post(`/pipeline/${requestId}/summary`);
-    await api.post(`/pipeline/${requestId}/content`);
+    // await api.post(`/pipeline/${requestId}/summary`);
+    // await api.post(`/pipeline/${requestId}/content`);
+    const summaryRes = await api.post(`/pipeline/${requestId}/summary`);
+
+    if (!summaryRes.data?.success) {
+      setErrorMsg(summaryRes.data?.error || "Summary generation failed. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    const contentRes = await api.post(`/pipeline/${requestId}/content`);
+
+    if (!contentRes.data?.success) {
+      setErrorMsg(contentRes.data?.error || "Content generation failed.");
+      setLoading(false);
+      return;
+    }
+
 
     // Step 4: Show final result
     if (autoPost) {

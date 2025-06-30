@@ -4,7 +4,7 @@ SQLAlchemy model for the content_queue table.
 Stores generated content drafts, status, scheduling info, and platform metadata.
 """
 
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime, Boolean, TIMESTAMP
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -27,6 +27,9 @@ class ContentQueue(Base):
     created_at = Column(DateTime, server_default=func.now())
     posted_at = Column(DateTime, nullable=True)
     platform_posted_id = Column(String, nullable=True)
+    deleted_at = Column(TIMESTAMP, nullable=True)
+    was_scheduled_then_deleted = Column(Boolean, default=False, server_default="false")
+
 
     # Optional: relationships
     request = relationship("Request", backref="content_queue")
