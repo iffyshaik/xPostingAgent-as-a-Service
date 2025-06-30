@@ -14,7 +14,7 @@ from app.models.requests import Request
 from app.models.summaries import Summary
 from app.models.content_queue import ContentQueue
 from app.models.thread_metadata import ThreadMetadata
-from app.agents.content_agent import create_content
+from app.agents.content_agent.core_content_agent import create_content
 from app.database import SessionLocal
 
 

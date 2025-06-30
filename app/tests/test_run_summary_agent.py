@@ -11,7 +11,7 @@ from app.database import SessionLocal
 from app.models.requests import Request
 from app.models.research_sources import ResearchSource
 from app.models.summaries import Summary
-from app.agents.summary_agent import generate_and_store_summary
+from app.agents.summary_agent.core_summary_agent import generate_and_store_summary
 import random
 
 def insert_dummy_data():

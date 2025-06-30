@@ -7,7 +7,7 @@ Simulates topic refinement using a mocked LLM.
 
 import pytest
 from unittest.mock import patch
-from app.agents.topic_agent import generate_content_topic
+from app.agents.topic_agent.core_topic_agent import generate_content_topic
 from app.models.requests import Request
 from app.database import SessionLocal, Base, engine
 from app.models.users import User

@@ -4,7 +4,7 @@ Manual Test for Research Agent
 Runs the full research pipeline using AI + Google search + filtering + DB insert.
 """
 
-from app.agents.research_agent import generate_research_sources
+from app.agents.research_agent.core_research_agent import generate_research_sources
 from app.models.requests import Request
 from app.models.users import User
 from app.database import SessionLocal

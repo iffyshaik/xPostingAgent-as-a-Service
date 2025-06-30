@@ -8,10 +8,10 @@ from fastapi import APIRouter, Depends, Path
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db, get_current_user
-from app.agents.topic_agent import generate_content_topic
-from app.agents.research_agent import generate_research_sources
-from app.agents.summary_agent import generate_and_store_summary
-from app.agents.content_agent import create_content
+from app.agents.topic_agent.core_topic_agent import generate_content_topic
+from app.agents.research_agent.core_research_agent import generate_research_sources
+from app.agents.summary_agent.core_summary_agent import generate_and_store_summary
+from app.agents.content_agent.core_content_agent import create_content
 from app.models.requests import Request
 from app.models.user_configurations import UserConfiguration
 from app.models.research_sources import ResearchSource

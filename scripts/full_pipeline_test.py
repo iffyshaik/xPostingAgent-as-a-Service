@@ -7,9 +7,9 @@ import datetime
 import time
 from app.database import SessionLocal
 from app.models import users, user_configurations, requests
-from app.agents.topic_agent import generate_content_topic
-from app.agents.research_agent import generate_research_sources
-from app.agents.content_agent import create_content
+from app.agents.topic_agent.core_topic_agent import generate_content_topic
+from app.agents.research_agent.core_research_agent import generate_research_sources
+from app.agents.content_agent.core_content_agent import create_content
 from app.services.content_queue import approve_content, schedule_content, post_content
 from app.utils.hash import hash_string
 
@@ -20,7 +20,7 @@ from app.models.user_configurations import UserConfiguration
 
 
 from sqlalchemy import text
-from app.agents.summary_agent import generate_and_store_summary
+from app.agents.summary_agent.core_summary_agent import generate_and_store_summary
 
 
 

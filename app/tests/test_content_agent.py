@@ -6,7 +6,7 @@ and offensive content filtering (configurable).
 import pytest
 from types import SimpleNamespace
 
-from app.agents.content_agent import (
+from app.agents.content_agent.core_content_agent import (
     build_content_prompt,
     select_top_citations,
 )
