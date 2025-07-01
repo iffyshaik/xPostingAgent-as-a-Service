@@ -5,7 +5,7 @@ and stores results in the `summaries` table.
 """
 
 from app.llm.engine import generate_completion
-from app.prompts.summary_prompt import build_summary_prompt
+from app.agents.summary_agent.prompts.combined_summary_prompt import build_summary_prompt
 from app.database import SessionLocal
 from app.models.research_sources import ResearchSource
 from app.models.requests import Request

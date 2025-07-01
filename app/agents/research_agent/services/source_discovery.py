@@ -7,7 +7,7 @@ based on the refined content topic.
 
 from typing import List, Dict
 from app.llm.engine import generate_completion
-from app.prompts.research_prompt import build_research_prompt
+from app.agents.research_agent.prompts.research_prompt import build_research_prompt
 
 def discover_sources_with_ai(content_topic: str, source_limit: int = 3, preference: str = "balanced") -> List[Dict]:
     """

@@ -4,7 +4,7 @@ Manual Test for Topic Source Usage Tracking
 Run this to verify that incrementing + overuse detection work as expected.
 """
 
-from app.services.source_reuse import is_source_overused, increment_source_usage
+from app.agents.research_agent.services.source_reuse import is_source_overused, increment_source_usage
 from app.utils.hash import hash_string
 from app.database import SessionLocal
 from app.models.topic_source_usage import TopicSourceUsage

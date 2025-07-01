@@ -6,7 +6,7 @@ It takes a user's original topic and configuration, builds a prompt, sends it to
 It also updates the database request row with the new topic and status.
 """
 
-from app.prompts.topic_prompt import build_topic_prompt
+from app.agents.topic_agent.prompts.topic_prompt import build_topic_prompt
 from app.llm.engine import generate_completion
 from app.database import SessionLocal
 from app.models.requests import Request

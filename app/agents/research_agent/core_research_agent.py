@@ -13,18 +13,18 @@ from app.database import SessionLocal
 from app.models.research_sources import ResearchSource
 
 # Modular services
-from app.services.google_search import get_google_search_results
-from app.services.ai_source_discovery import discover_sources_with_ai
-from app.services.source_verification import (
+from app.agents.research_agent.services.google_search import get_google_search_results
+from app.agents.research_agent.services.source_discovery import discover_sources_with_ai
+from app.agents.research_agent.services.source_verification import (
     is_url_accessible,
     extract_page_metadata,
     check_relevance_with_ai,
 )
-from app.services.embedding_similarity import calculate_embedding_similarity
-from app.services.source_reuse import is_source_overused, increment_source_usage
+from app.agents.research_agent.services.embedding_similarity import calculate_embedding_similarity
+from app.agents.research_agent.services.source_reuse import is_source_overused, increment_source_usage
 
 from app.llm.engine import generate_completion
-from app.prompts.summary_prompt import build_source_summary_prompt
+from app.agents.research_agent.prompts.source_summary_prompt import build_source_summary_prompt
 from app.agents.summary_agent.core_summary_agent import parse_llm_output
 
 
