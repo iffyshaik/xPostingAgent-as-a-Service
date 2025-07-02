@@ -85,5 +85,9 @@ app.include_router(content_requests.router)  # 👈 add this too
 # from app.api import dev_patch_summaries
 # app.include_router(dev_patch_summaries.router)
 
-from app.api import users  # <- make sure this import is here
+from app.api import users  
 app.include_router(users.router)
+
+from app.api.agents import content_planner
+app.include_router(content_planner.router)
+
